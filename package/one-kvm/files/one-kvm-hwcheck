@@ -1,0 +1,25 @@
+#!/bin/sh
+
+json_bool() {
+	[ "$1" = "1" ] && printf true || printf false
+}
+
+exists() {
+	[ -e "$1" ] && printf 1 || printf 0
+}
+
+video_count="$(ls /dev/video* 2>/dev/null | wc -l | tr -d ' ')"
+tty_count="$(ls /dev/ttyUSB* 2>/dev/null | wc -l | tr -d ' ')"
+ch9329_exists="$(exists /dev/ch9329)"
+udc_count="$(ls /sys/class/udc 2>/dev/null | wc -l | tr -d ' ')"
+
+printf '{'
+printf '"video_count":%s,' "${video_count:-0}"
+printf '"ttyusb_count":%s,' "${tty_count:-0}"
+printf '"ch9329_exists":'
+json_bool "$ch9329_exists"
+printf ',"udc_count":%s,' "${udc_count:-0}"
+printf '"host_only":'
+[ "${udc_count:-0}" = "0" ] && printf true || printf false
+printf '}'
+printf '\n'

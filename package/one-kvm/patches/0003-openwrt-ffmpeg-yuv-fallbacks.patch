@@ -1,0 +1,136 @@
+--- a/libs/hwcodec/cpp/ffmpeg_hw/ffmpeg_hw_mjpeg_h26x.cpp
++++ b/libs/hwcodec/cpp/ffmpeg_hw/ffmpeg_hw_mjpeg_h26x.cpp
+@@ -89,6 +89,11 @@ static int init_decoder(FfmpegHwMjpegH26xCtx *ctx) {
+   ctx->dec_ctx->thread_count = ctx->thread_count > 0 ? ctx->thread_count : 1;
+   ctx->dec_ctx->opaque = ctx;
+ 
++  int ret = 0;
++#ifndef AV_HWDEVICE_TYPE_RKMPP
++  set_last_error("RKMPP hw device type is not available in this FFmpeg build");
++  return -1;
++#else
+   // Pick HW pixfmt for RKMPP
+   const AVCodecHWConfig *cfg = nullptr;
+   for (int i = 0; (cfg = avcodec_get_hw_config(dec, i)); i++) {
+@@ -106,7 +111,7 @@ static int init_decoder(FfmpegHwMjpegH26xCtx *ctx) {
+     return -1;
+   }
+ 
+-  int ret = av_hwdevice_ctx_create(&ctx->hw_device_ctx,
++  ret = av_hwdevice_ctx_create(&ctx->hw_device_ctx,
+                                    AV_HWDEVICE_TYPE_RKMPP, NULL, NULL, 0);
+   if (ret < 0) {
+     set_last_error(make_err("av_hwdevice_ctx_create failed", ret));
+@@ -110,6 +116,7 @@ static int init_decoder(FfmpegHwMjpegH26xCtx *ctx) {
+   }
+ 
+   ctx->dec_ctx->hw_device_ctx = av_buffer_ref(ctx->hw_device_ctx);
++#endif
+   ctx->dec_ctx->get_format = get_hw_format;
+ 
+   ret = avcodec_open2(ctx->dec_ctx, dec, NULL);
+--- a/libs/hwcodec/cpp/ffmpeg_ram/ffmpeg_ram_decode.cpp
++++ b/libs/hwcodec/cpp/ffmpeg_ram/ffmpeg_ram_decode.cpp
+@@ -54,9 +54,11 @@ public:
+     thread_count_ = thread_count > 0 ? thread_count : 1;
+     callback_ = callback;
+ 
++#ifdef AV_HWDEVICE_TYPE_RKMPP
+     if (name_.find("rkmpp") != std::string::npos) {
+       hw_device_type_ = AV_HWDEVICE_TYPE_RKMPP;
+     }
++#endif
+   }
+ 
+   ~FFmpegRamDecoder() {}
+--- a/res/vcpkg/libyuv/Cargo.toml
++++ b/res/vcpkg/libyuv/Cargo.toml
+@@ -9,3 +9,4 @@ license = "BSD-3-Clause"
+ 
+ [build-dependencies]
+ bindgen = "0.70.1"
++cc = "1"
+--- a/res/vcpkg/libyuv/build.rs
++++ b/res/vcpkg/libyuv/build.rs
+@@ -9,12 +9,31 @@ fn main() {
+     let cpp_dir = manifest_dir.join("cpp");
+ 
+     println!("cargo:rerun-if-changed=cpp/yuv_ffi.h");
++    println!("cargo:rerun-if-env-changed=ONE_KVM_LIBYUV_STUB");
+ 
+     // Generate FFI bindings
+     generate_bindings(&cpp_dir);
+ 
++    if env::var("ONE_KVM_LIBYUV_STUB")
++        .map(|value| value.trim() == "1")
++        .unwrap_or(false)
++    {
++        build_stub(&cpp_dir);
++        return;
++    }
++
+     // Link libyuv library
+     link_libyuv();
++}
++
++fn build_stub(cpp_dir: &Path) {
++    cc::Build::new()
++        .cpp(true)
++        .file(cpp_dir.join("yuv_stub.cpp"))
++        .compile("one_kvm_yuv_stub");
++    println!(
++        "cargo:warning=Using One-KVM OpenWrt libyuv stub; raw-frame conversion paths are disabled"
++    );
+ }
+ 
+ fn generate_bindings(cpp_dir: &Path) {
+--- /dev/null
++++ b/res/vcpkg/libyuv/cpp/yuv_stub.cpp
+@@ -0,0 +1,47 @@
++#define STUB_INT(name) int name(...) { return -1; }
++
++extern "C" {
++
++STUB_INT(YUY2ToI420)
++STUB_INT(YUY2ToNV12)
++STUB_INT(UYVYToI420)
++STUB_INT(UYVYToNV12)
++STUB_INT(I420ToNV12)
++STUB_INT(I420ToNV21)
++STUB_INT(I420Copy)
++STUB_INT(I422ToI420)
++STUB_INT(I444ToI420)
++STUB_INT(NV12ToI420)
++STUB_INT(NV21ToI420)
++STUB_INT(NV21ToNV12)
++STUB_INT(NV12Copy)
++void SplitUVPlane(...) {}
++STUB_INT(ARGBToI420)
++STUB_INT(ARGBToNV12)
++STUB_INT(ABGRToI420)
++STUB_INT(ABGRToNV12)
++STUB_INT(ARGBToABGR)
++STUB_INT(ABGRToARGB)
++STUB_INT(RGB24ToI420)
++STUB_INT(RGB24ToNV12)
++STUB_INT(RAWToI420)
++STUB_INT(RGB24ToARGB)
++STUB_INT(RAWToARGB)
++STUB_INT(I420ToRGB24)
++STUB_INT(I420ToARGB)
++STUB_INT(H444ToARGB)
++STUB_INT(NV12ToRGB24)
++STUB_INT(NV12ToARGB)
++STUB_INT(YUY2ToARGB)
++STUB_INT(UYVYToARGB)
++STUB_INT(ARGBToRGB24)
++STUB_INT(ARGBToRAW)
++STUB_INT(MJPGToNV12)
++STUB_INT(MJPGSize)
++STUB_INT(I420Scale)
++STUB_INT(NV12Scale)
++STUB_INT(ARGBScale)
++STUB_INT(I420Rotate)
++STUB_INT(NV12ToI420Rotate)
++
++}

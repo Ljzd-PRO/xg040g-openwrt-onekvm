@@ -1,0 +1,81 @@
+#!/bin/sh /etc/rc.common
+
+START=98
+STOP=10
+USE_PROCD=1
+
+NAME="one-kvm"
+PROG="/usr/bin/one-kvm"
+
+start_service() {
+	local enabled bind_address http_port https_enabled https_port ssl_cert ssl_key
+	local data_dir log_level video_device hid_backend ch9329_port ch9329_baudrate
+	local ch9329_hybrid_mouse force_host_only
+
+	config_load "$NAME"
+	config_get_bool enabled main enabled 0
+	config_get bind_address main bind_address "0.0.0.0"
+	config_get http_port main http_port "8080"
+	config_get_bool https_enabled main https_enabled 0
+	config_get https_port main https_port "8443"
+	config_get ssl_cert main ssl_cert ""
+	config_get ssl_key main ssl_key ""
+	config_get data_dir main data_dir "/etc/one-kvm"
+	config_get log_level main log_level "info"
+	config_get video_device main video_device "/dev/video0"
+	config_get hid_backend main hid_backend "ch9329"
+	config_get ch9329_port main ch9329_port "/dev/ch9329"
+	config_get ch9329_baudrate main ch9329_baudrate "115200"
+	config_get_bool ch9329_hybrid_mouse main ch9329_hybrid_mouse 0
+	config_get_bool force_host_only main force_host_only 1
+
+	[ "$enabled" = "1" ] || {
+		logger -t "$NAME" "disabled in UCI"
+		return 0
+	}
+
+	[ -x "$PROG" ] || {
+		logger -t "$NAME" "$PROG is missing or not executable"
+		return 1
+	}
+
+	mkdir -p "$data_dir"
+
+	procd_open_instance
+	procd_set_param command "$PROG"
+	procd_append_param command -d "$data_dir"
+	procd_append_param command -a "$bind_address"
+	procd_append_param command -p "$http_port"
+	procd_append_param command -l "$log_level"
+
+	if [ "$https_enabled" = "1" ]; then
+		procd_append_param command --enable-https
+		procd_append_param command --https-port "$https_port"
+		[ -n "$ssl_cert" ] && [ -n "$ssl_key" ] && {
+			procd_append_param command --ssl-cert "$ssl_cert"
+			procd_append_param command --ssl-key "$ssl_key"
+		}
+	fi
+
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_set_param respawn 3600 5 5
+	procd_append_param env ONE_KVM_DATA_DIR="$data_dir"
+	procd_append_param env ONE_KVM_VIDEO_DEVICE="$video_device"
+	procd_append_param env ONE_KVM_HID_BACKEND="$hid_backend"
+	procd_append_param env ONE_KVM_CH9329_PORT="$ch9329_port"
+	procd_append_param env ONE_KVM_CH9329_BAUDRATE="$ch9329_baudrate"
+	procd_append_param env ONE_KVM_CH9329_HYBRID_MOUSE="$ch9329_hybrid_mouse"
+	procd_append_param env ONE_KVM_FORCE_HOST_ONLY="$force_host_only"
+	procd_append_param env RUST_LOG="one_kvm=$log_level,tower_http=warn,webrtc_sctp=warn"
+	procd_close_instance
+}
+
+service_triggers() {
+	procd_add_reload_trigger "$NAME"
+}
+
+reload_service() {
+	stop
+	start
+}

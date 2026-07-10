@@ -1,0 +1,95 @@
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -166,6 +166,8 @@ async fn main() -> anyhow::Result<()> {
+         config.web.ssl_key_path = Some(key_path.to_string_lossy().to_string());
+     }
+ 
++    apply_openwrt_env_overrides(&mut config);
++
+     let bind_ips = resolve_bind_addresses(&config.web)?;
+     let scheme = if config.web.https_enabled {
+         "https"
+@@ -744,6 +746,83 @@ async fn main() -> anyhow::Result<()> {
+     Ok(())
+ }
+ 
++fn env_truthy(value: &str) -> bool {
++    matches!(
++        value.trim().to_ascii_lowercase().as_str(),
++        "1" | "true" | "yes" | "on"
++    )
++}
++
++fn apply_openwrt_env_overrides(config: &mut AppConfig) {
++    if let Ok(value) = std::env::var("ONE_KVM_VIDEO_DEVICE") {
++        let value = value.trim();
++        if !value.is_empty() {
++            tracing::info!("OpenWrt override: video device={}", value);
++            config.video.device = Some(value.to_string());
++        }
++    }
++
++    if let Ok(value) = std::env::var("ONE_KVM_HID_BACKEND") {
++        match value.trim().to_ascii_lowercase().as_str() {
++            "ch9329" => {
++                tracing::info!("OpenWrt override: HID backend=ch9329");
++                config.hid.backend = config::HidBackend::Ch9329;
++            }
++            "none" | "disabled" | "off" => {
++                tracing::info!("OpenWrt override: HID backend=none");
++                config.hid.backend = config::HidBackend::None;
++            }
++            "otg" => {
++                tracing::warn!("OpenWrt override ignored unsupported HID backend=otg");
++            }
++            other if !other.is_empty() => {
++                tracing::warn!("OpenWrt override ignored unknown HID backend={}", other);
++            }
++            _ => {}
++        }
++    }
++
++    if let Ok(value) = std::env::var("ONE_KVM_CH9329_PORT") {
++        let value = value.trim();
++        if !value.is_empty() {
++            tracing::info!("OpenWrt override: CH9329 port={}", value);
++            config.hid.ch9329_port = value.to_string();
++        }
++    }
++
++    if let Ok(value) = std::env::var("ONE_KVM_CH9329_BAUDRATE") {
++        match value.trim().parse::<u32>() {
++            Ok(baudrate) => {
++                tracing::info!("OpenWrt override: CH9329 baudrate={}", baudrate);
++                config.hid.ch9329_baudrate = baudrate;
++            }
++            Err(e) => tracing::warn!(
++                "OpenWrt override ignored invalid CH9329 baudrate {:?}: {}",
++                value,
++                e
++            ),
++        }
++    }
++
++    if let Ok(value) = std::env::var("ONE_KVM_CH9329_HYBRID_MOUSE") {
++        config.hid.ch9329_hybrid_mouse = env_truthy(&value);
++    }
++
++    if std::env::var("ONE_KVM_FORCE_HOST_ONLY")
++        .map(|v| env_truthy(&v))
++        .unwrap_or(false)
++    {
++        tracing::info!("OpenWrt host-only mode: disabling OTG/MSD gadget features");
++        if config.hid.backend == config::HidBackend::Otg {
++            config.hid.backend = config::HidBackend::None;
++        }
++        config.hid.otg_udc = None;
++        config.msd.enabled = false;
++    }
++
++    config.enforce_invariants();
++}
++
+ fn init_logging(level: LogLevel, verbose_count: u8) {
+     let effective_level = match verbose_count {
+         0 => level,
