@@ -85,7 +85,9 @@ jobs:
       - name: Restore OpenWrt downloads
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          path: .cache/dl
+          path: |
+            .cache/dl
+            .cache/feeds
           key: ${{ runner.os }}-${{ runner.arch }}-openwrt-dl-${{ hashFiles('locks/sources.lock', 'locks/feeds.conf') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-openwrt-dl-
@@ -173,4 +175,3 @@ jobs:
           while IFS= read -r asset; do
             gh release upload "$GITHUB_REF_NAME" "$asset" --repo "$GITHUB_REPOSITORY"
           done < <(find . -type f ! -name release-notes.md | sort)
-

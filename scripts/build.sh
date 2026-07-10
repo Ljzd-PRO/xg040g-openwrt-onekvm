@@ -124,7 +124,7 @@ esac
 
 timestamp="$(date +%Y%m%d-%H%M%S)"
 out_dir="${out_dir:-$repo_root/output/$profile-$timestamp}"
-mkdir -p "$out_dir" "$repo_root/.cache/dl"
+mkdir -p "$out_dir" "$repo_root/.cache/dl" "$repo_root/.cache/feeds"
 out_dir="$(cd "$out_dir" && pwd)"
 
 builder_image="${BUILDER_IMAGE:-xg040g-openwrt-builder:ubuntu24.04-$arch_tag}"
@@ -137,12 +137,14 @@ docker_args=(
 	-e "JOBS=$jobs"
 	-e "SOURCE_MODE=$source_mode"
 	-e "INCREMENTAL=$incremental"
+	-e "OFFLINE=$offline"
 	-e "WITH_LOCAL_PACKAGES=$with_local_packages"
 	-e "BUILD_VERBOSITY=$build_verbosity"
 	-e "CONFIG_FILE=/project/${config_file#"$repo_root/"}"
 	-e FORCE_UNSAFE_CONFIGURE=1
 	-v "$repo_root:/project:ro"
 	-v "$repo_root/.cache/dl:/dl"
+	-v "$repo_root/.cache/feeds:/feed-cache"
 	-v "$out_dir:/out"
 )
 
@@ -198,9 +200,66 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 		rm -rf build_dir staging_dir bin tmp logs .config feeds package/feeds dl
 	fi
 	ln -s /dl dl
-	cp /project/locks/feeds.conf feeds.conf
+
+	prepare_feed_cache() {
+		local name="$1"
+		local url="$2"
+		local commit="$3"
+		local cache_repo="/feed-cache/${name}.git"
+		local attempt
+
+		if [[ ! -d "$cache_repo" ]]; then
+			mkdir -p "$cache_repo"
+			git init --bare "$cache_repo" >/dev/null
+		fi
+
+		if git --git-dir="$cache_repo" cat-file -e "${commit}^{commit}" 2>/dev/null; then
+			return 0
+		fi
+		if [[ "$OFFLINE" == "1" ]]; then
+			echo "Feed $name commit $commit is missing from the offline cache." >&2
+			return 1
+		fi
+
+		if git --git-dir="$cache_repo" remote get-url origin >/dev/null 2>&1; then
+			git --git-dir="$cache_repo" remote set-url origin "$url"
+		else
+			git --git-dir="$cache_repo" remote add origin "$url"
+		fi
+
+		for attempt in 1 2 3; do
+			if git --git-dir="$cache_repo" -c http.lowSpeedLimit=1000 \
+				-c http.lowSpeedTime=60 fetch --no-tags --depth=1 origin "$commit" \
+				&& git --git-dir="$cache_repo" cat-file -e "${commit}^{commit}"; then
+				return 0
+			fi
+			echo "Feed $name fetch attempt $attempt failed; retrying." >&2
+			sleep "$((attempt * 5))"
+		done
+
+		echo "Unable to cache feed $name at $commit." >&2
+		return 1
+	}
+
+	: > feeds.conf
+	while read -r kind name source; do
+		[[ -n "$kind" && "$kind" != \#* ]] || continue
+		[[ "$kind" == "src-git" ]] || {
+			echo "Unsupported feed type in locks/feeds.conf: $kind" >&2
+			exit 1
+		}
+		url="${source%^*}"
+		commit="${source##*^}"
+		[[ "$url" != "$source" && -n "$commit" ]] || {
+			echo "Feed $name is not pinned to a commit." >&2
+			exit 1
+		}
+		prepare_feed_cache "$name" "$url" "$commit"
+		printf "src-git %s file:///feed-cache/%s.git^%s\n" "$name" "$name" "$commit" >> feeds.conf
+	done < /project/locks/feeds.conf
 
 	./scripts/feeds update -a
+	cp /project/locks/feeds.conf feeds.conf
 	./scripts/feeds install -a -f
 
 	if [[ "$WITH_LOCAL_PACKAGES" == "1" ]]; then
@@ -236,8 +295,14 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 	target_dir="bin/targets/airoha/an7581"
 	prefix="openwrt-airoha-an7581-nokia_xg-040g-md-tcboot"
 	test -d "$target_dir"
+	mapfile -t manifest_files < <(find "$target_dir" -maxdepth 1 -type f \
+		-name "openwrt-airoha-an7581-*.manifest" -print)
+	if [[ "${#manifest_files[@]}" -ne 1 ]]; then
+		echo "Expected exactly one target manifest, found ${#manifest_files[@]}." >&2
+		exit 1
+	fi
 	cp -a "$target_dir"/"$prefix"-* /out/
-	cp -a "$target_dir"/"$prefix".manifest /out/
+	cp -a "${manifest_files[0]}" "/out/$prefix.manifest"
 	cp -a "$target_dir"/*.buildinfo "$target_dir"/profiles.json "$target_dir"/sha256sums /out/
 
 	project_commit="$(git -C /project rev-parse HEAD 2>/dev/null || echo source-archive)"
@@ -252,7 +317,7 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 		"{profile:\$profile,project_commit:\$project_commit,openwrt_commit:\$openwrt_commit,one_kvm_commit:\$one_kvm_commit,source_mode:\$source_mode,builder_arch:\$platform,jobs:(\$jobs|tonumber)}" \
 		> /out/BUILD-METADATA.json
 
-	(cd /out && sha256sum "$prefix"-* > SHA256SUMS.local)
+	(cd /out && sha256sum "$prefix"-* "$prefix.manifest" > SHA256SUMS.local)
 '
 
 "$repo_root/scripts/verify-output.sh" "$profile" "$out_dir"
