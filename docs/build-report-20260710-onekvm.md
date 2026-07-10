@@ -74,9 +74,10 @@ The manifest does not contain the forbidden host-only exclusions:
 ## Open Items
 
 The hot-cache offline `onekvm` build was started as an additional release
-confidence check at `output/onekvm-offline-20260710-202232`. It was still
-running when this report was first committed. The purpose is to verify that
-feed, Cargo and npm dependencies can be reused without network access.
+confidence check at `output/onekvm-offline-20260710-202232`. It reached the
+Node/V8 host build stage, but did not complete because the local machine was
+restarted. It was not resumed, and should not be counted as a passed release
+gate.
 
 Device flashing and runtime smoke tests were intentionally skipped per user
 instruction. The following checks remain pending until a later flash/test
@@ -88,4 +89,3 @@ cycle:
 - One-KVM service startup and memory smoke test
 - `one-kvm-codec-check`
 - MS2109, CH9329, USB3 KVMSTORE, PXE and rclone/WebDAV hardware checks
-
