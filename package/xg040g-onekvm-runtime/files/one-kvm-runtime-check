@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+missing=0
+
+printf 'RUNTIME_ABI='
+cat /usr/share/xg040g-onekvm-runtime/abi 2>/dev/null || {
+	echo missing
+	missing=1
+}
+
+for binary in one-kvm ttyd gostc easytier-core frpc; do
+	path="/usr/bin/$binary"
+	if [ -x "$path" ]; then
+		size="$(wc -c < "$path" | tr -d ' ')"
+		echo "BINARY=$binary path=$path bytes=$size"
+	else
+		echo "MISSING_BINARY=$binary path=$path"
+		missing=1
+	fi
+done
+
+for library in libasound.so libopus.so libyuv.so libavcodec.so libavutil.so libx264.so libx265.so libvpx.so; do
+	if find /usr/lib -maxdepth 1 -name "$library*" -print -quit 2>/dev/null | grep -q .; then
+		echo "LIBRARY=$library present=1"
+	else
+		echo "MISSING_LIBRARY=$library"
+		missing=1
+	fi
+done
+
+[ "$missing" -eq 0 ] || exit 1
+echo 'RUNTIME_CHECK_OK=1'

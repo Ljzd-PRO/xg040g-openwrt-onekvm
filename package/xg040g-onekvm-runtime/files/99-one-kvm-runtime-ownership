@@ -1,0 +1,17 @@
+#!/bin/sh
+
+for service in ttyd frpc; do
+	[ -x "/etc/init.d/$service" ] || continue
+	"/etc/init.d/$service" stop >/dev/null 2>&1 || true
+	"/etc/init.d/$service" disable >/dev/null 2>&1 || true
+done
+
+if uci -q show ttyd >/dev/null 2>&1; then
+	section="$(uci -q show ttyd | sed -n "s/^ttyd\.\([^.=]*\)=ttyd.*/\1/p" | head -n 1)"
+	if [ -n "$section" ]; then
+		uci set "ttyd.$section.enable=0"
+		uci commit ttyd
+	fi
+fi
+
+exit 0

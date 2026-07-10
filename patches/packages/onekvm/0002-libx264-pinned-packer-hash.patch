@@ -1,0 +1,11 @@
+--- a/libs/libx264/Makefile
++++ b/libs/libx264/Makefile
+@@ -13,7 +13,7 @@ PKG_SOURCE_PROTO:=git
+ PKG_SOURCE_URL:=https://code.videolan.org/videolan/x264.git
+ PKG_SOURCE_DATE:=2025-09-10
+ PKG_SOURCE_VERSION:=0480cb05fa188d37ae87e8f4fd8f1aea3711f7ee
+-PKG_MIRROR_HASH:=03c13f100cf6bd3c3d309f410be159794103ae2ee73f82f33e4b871d718b1fcd
++PKG_MIRROR_HASH:=fa17b2f5148383fd3f7d064268a222284e7af004318af217ce151fc54a3b0550
+ 
+ PKG_MAINTAINER:=Adrian Panella <ianchi74@outlook.com>
+ PKG_LICENSE:=GPL-2.0-or-later

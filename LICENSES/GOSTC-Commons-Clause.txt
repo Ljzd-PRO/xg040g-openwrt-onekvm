@@ -1,0 +1,7 @@
+Additional Commons Clause Restriction:
+
+Notwithstanding the above, you may not use this software for commercial purposes,
+including but not limited to selling, licensing, or offering it as a SaaS (Software as a Service)
+without express written permission from the copyright holder(s).
+
+This restriction applies to all derivative works, modifications, or distributions of this software.

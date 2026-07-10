@@ -1,0 +1,11 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libyuv
+Description: YUV conversion, scaling and rotation library
+Version: 2026.06.16
+Libs: -L${libdir} -lyuv
+Libs.private: -lstdc++ -ljpeg
+Cflags: -I${includedir}

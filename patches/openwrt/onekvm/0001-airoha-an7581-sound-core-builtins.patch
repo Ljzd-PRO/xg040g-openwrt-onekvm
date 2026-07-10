@@ -1,0 +1,46 @@
+diff --git a/package/kernel/linux/modules/sound.mk b/package/kernel/linux/modules/sound.mk
+index 43f1fd0..d3dc341 100644
+--- a/package/kernel/linux/modules/sound.mk
++++ b/package/kernel/linux/modules/sound.mk
+@@ -32,11 +32,39 @@ SOUNDCORE_FILES ?= \
+ 	$(LINUX_DIR)/sound/core/oss/snd-pcm-oss.ko \
+ 	$(LINUX_DIR)/sound/core/snd-compress.ko
+ 
++# AN7581 has the ALSA core built into the target kernel. Package only symbols
++# which remain modular so kmod-sound-core can coexist with that target config.
++ifeq ($(CONFIG_TARGET_airoha_an7581),y)
++SOUNDCORE_LOAD = \
++	$(if $(filter m,$(CONFIG_SOUND_OSS_CORE)),soundcore) \
++	$(if $(filter m,$(CONFIG_SND)),snd) \
++	$(if $(filter m,$(CONFIG_SND_HWDEP)),snd-hwdep) \
++	$(if $(filter m,$(CONFIG_SND_SEQ_DEVICE)),snd-seq-device) \
++	$(if $(filter m,$(CONFIG_SND_RAWMIDI)),snd-rawmidi) \
++	$(if $(filter m,$(CONFIG_SND_TIMER)),snd-timer) \
++	$(if $(filter m,$(CONFIG_SND_PCM)),snd-pcm) \
++	$(if $(filter m,$(CONFIG_SND_MIXER_OSS)),snd-mixer-oss) \
++	$(if $(filter m,$(CONFIG_SND_PCM_OSS)),snd-pcm-oss) \
++	$(if $(filter m,$(CONFIG_SND_COMPRESS_OFFLOAD)),snd-compress)
++
++SOUNDCORE_FILES = \
++	$(if $(filter m,$(CONFIG_SOUND_OSS_CORE)),$(LINUX_DIR)/sound/soundcore.ko) \
++	$(if $(filter m,$(CONFIG_SND)),$(LINUX_DIR)/sound/core/snd.ko) \
++	$(if $(filter m,$(CONFIG_SND_HWDEP)),$(LINUX_DIR)/sound/core/snd-hwdep.ko) \
++	$(if $(filter m,$(CONFIG_SND_SEQ_DEVICE)),$(LINUX_DIR)/sound/core/snd-seq-device.ko) \
++	$(if $(filter m,$(CONFIG_SND_RAWMIDI)),$(LINUX_DIR)/sound/core/snd-rawmidi.ko) \
++	$(if $(filter m,$(CONFIG_SND_TIMER)),$(LINUX_DIR)/sound/core/snd-timer.ko) \
++	$(if $(filter m,$(CONFIG_SND_PCM)),$(LINUX_DIR)/sound/core/snd-pcm.ko) \
++	$(if $(filter m,$(CONFIG_SND_MIXER_OSS)),$(LINUX_DIR)/sound/core/oss/snd-mixer-oss.ko) \
++	$(if $(filter m,$(CONFIG_SND_PCM_OSS)),$(LINUX_DIR)/sound/core/oss/snd-pcm-oss.ko) \
++	$(if $(filter m,$(CONFIG_SND_COMPRESS_OFFLOAD)),$(LINUX_DIR)/sound/core/snd-compress.ko)
++endif
++
+ SOUNDCORE_LOAD += \
+-	$(if $(CONFIG_SND_DMAENGINE_PCM),snd-pcm-dmaengine)
++	$(if $(filter m,$(CONFIG_SND_DMAENGINE_PCM)),snd-pcm-dmaengine)
+ 
+ SOUNDCORE_FILES += \
+-	$(if $(CONFIG_SND_DMAENGINE_PCM),$(LINUX_DIR)/sound/core/snd-pcm-dmaengine.ko)
++	$(if $(filter m,$(CONFIG_SND_DMAENGINE_PCM)),$(LINUX_DIR)/sound/core/snd-pcm-dmaengine.ko)
+ 
+ define KernelPackage/sound-core
+   SUBMENU:=$(SOUND_MENU)

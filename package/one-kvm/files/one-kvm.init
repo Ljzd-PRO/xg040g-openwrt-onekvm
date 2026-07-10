@@ -68,6 +68,7 @@ start_service() {
 	procd_append_param env ONE_KVM_CH9329_BAUDRATE="$ch9329_baudrate"
 	procd_append_param env ONE_KVM_CH9329_HYBRID_MOUSE="$ch9329_hybrid_mouse"
 	procd_append_param env ONE_KVM_FORCE_HOST_ONLY="$force_host_only"
+	procd_append_param env ONE_KVM_FORCE_SOFTWARE_ONLY="1"
 	procd_append_param env RUST_LOG="one_kvm=$log_level,tower_http=warn,webrtc_sctp=warn"
 	procd_close_instance
 }

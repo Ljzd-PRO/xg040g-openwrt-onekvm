@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=one-kvm
 PKG_VERSION:=0.2.3
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=
@@ -23,12 +23,15 @@ export PKG_CONFIG_SYSROOT_DIR:=$(STAGING_DIR)
 export PKG_CONFIG_PATH:=$(STAGING_DIR)/usr/lib/pkgconfig:$(STAGING_DIR)/usr/share/pkgconfig
 export LIBCLANG_PATH:=/usr/lib/llvm-18/lib
 export BINDGEN_EXTRA_CLANG_ARGS:=--target=aarch64-openwrt-linux-musl --sysroot=$(TOOLCHAIN_DIR) -isystem$(TOOLCHAIN_DIR)/include -isystem$(STAGING_DIR)/usr/include
-export ONE_KVM_LIBYUV_STUB:=1
 export ONE_KVM_DISABLE_RKMPP:=1
 export CARGO_NET_RETRY:=10
 export CARGO_HTTP_TIMEOUT:=600
 export CARGO_HTTP_MULTIPLEXING:=false
 export CXX:=$(TARGET_CXX_NOCACHE)
+
+ONE_KVM_CARGO_OFFLINE?=0
+ONE_KVM_NPM_OFFLINE?=0
+ONE_KVM_NPM_ARGS:=--no-audit --no-fund --cache $(DL_DIR)/npm --prefer-offline
 
 define Package/one-kvm
   SECTION:=net
@@ -36,7 +39,7 @@ define Package/one-kvm
   SUBMENU:=Remote access
   TITLE:=One-KVM IP-KVM server for XG-040G-MD
   URL:=https://github.com/mofeng-git/One-KVM
-  DEPENDS:=$(RUST_ARCH_DEPENDS) +libstdcpp +libv4l +libffmpeg-mini +libjpeg-turbo +libudev-zero +libdrm
+  DEPENDS:=$(RUST_ARCH_DEPENDS) +xg040g-onekvm-runtime +libstdcpp +libv4l +libjpeg-turbo +libudev-zero +libdrm
 endef
 
 define Package/one-kvm/description
@@ -54,8 +57,26 @@ define Build/Prepare
 endef
 
 define Build/Compile
-	cd $(PKG_BUILD_DIR)/web && npm ci --no-audit --no-fund && npm run build
-	$(call Build/Compile/Cargo)
+	set -e; \
+	cd $(PKG_BUILD_DIR); \
+	if [ "$(ONE_KVM_CARGO_OFFLINE)" = "1" ]; then \
+		$(CARGO_PKG_VARS) cargo fetch --manifest-path Cargo.toml --locked --offline; \
+	else \
+		$(CARGO_PKG_VARS) cargo fetch --manifest-path Cargo.toml --locked || \
+			{ sleep 5; $(CARGO_PKG_VARS) cargo fetch --manifest-path Cargo.toml --locked; } || \
+			{ sleep 10; $(CARGO_PKG_VARS) cargo fetch --manifest-path Cargo.toml --locked; }; \
+	fi
+	set -e; \
+	cd $(PKG_BUILD_DIR)/web; \
+	if [ "$(ONE_KVM_NPM_OFFLINE)" = "1" ]; then \
+		npm ci $(ONE_KVM_NPM_ARGS) --offline; \
+	else \
+		npm ci $(ONE_KVM_NPM_ARGS) || \
+			{ sleep 5; npm ci $(ONE_KVM_NPM_ARGS); } || \
+			{ sleep 10; npm ci $(ONE_KVM_NPM_ARGS); }; \
+	fi; \
+	npm run build
+	$(call Build/Compile/Cargo,,--offline)
 endef
 
 define Package/one-kvm/install
@@ -70,6 +91,18 @@ define Package/one-kvm/install
 
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/one-kvm-hwcheck $(1)/usr/sbin/one-kvm-hwcheck
+
+	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
+	$(INSTALL_DATA) ./files/one-kvm.keep $(1)/lib/upgrade/keep.d/one-kvm
+endef
+
+define Package/one-kvm/postinst
+#!/bin/sh
+[ -n "$${IPKG_INSTROOT:-}" ] && exit 0
+if [ "$$(uci -q get one-kvm.main.enabled || echo 0)" = "1" ]; then
+	/etc/init.d/one-kvm restart >/dev/null 2>&1 || true
+fi
+exit 0
 endef
 
 $(eval $(call BuildPackage,one-kvm))

@@ -1,0 +1,299 @@
+diff --git a/src/platform/linux.rs b/src/platform/linux.rs
+index 5161a94..e2dc7e2 100644
+--- a/src/platform/linux.rs
++++ b/src/platform/linux.rs
+@@ -1,19 +1,42 @@
+ //! Linux platform capabilities.
+ 
+-use super::{FeatureCapability, PlatformCapabilities, PlatformMode};
++use super::{
++    host_only_mode, software_only_mode, FeatureCapability, PlatformCapabilities, PlatformMode,
++};
+ 
+ pub fn capabilities() -> PlatformCapabilities {
++    let host_only = host_only_mode();
++    let encoder = if software_only_mode() {
++        FeatureCapability::available(["software"])
++    } else {
++        FeatureCapability::available([
++            "software", "vaapi", "nvenc", "qsv", "amf", "rkmpp", "v4l2m2m",
++        ])
++    };
++    let hid = if host_only {
++        FeatureCapability::available(["ch9329", "none"])
++    } else {
++        FeatureCapability::available(["otg", "ch9329", "none"])
++    };
++    let otg_reason = "Disabled by the XG-040G-MD host-only firmware profile";
++
+     PlatformCapabilities {
+         mode: PlatformMode::Linux,
+         mode_label: PlatformMode::Linux.label(),
+         video_capture: FeatureCapability::available(["v4l2"]),
+-        encoder: FeatureCapability::available([
+-            "software", "vaapi", "nvenc", "qsv", "amf", "rkmpp", "v4l2m2m",
+-        ]),
+-        hid: FeatureCapability::available(["otg", "ch9329", "none"]),
++        encoder,
++        hid,
+         atx: FeatureCapability::available(["gpio", "usb_relay", "serial", "wol", "none"]),
+-        msd: FeatureCapability::available(["configfs"]),
+-        otg: FeatureCapability::available(["configfs"]),
++        msd: if host_only {
++            FeatureCapability::unsupported(otg_reason)
++        } else {
++            FeatureCapability::available(["configfs"])
++        },
++        otg: if host_only {
++            FeatureCapability::unsupported(otg_reason)
++        } else {
++            FeatureCapability::available(["configfs"])
++        },
+         audio: FeatureCapability::available(["alsa"]),
+         rustdesk: FeatureCapability::available(["builtin"]),
+         vnc: FeatureCapability::available(["builtin", "tight_jpeg", "h264"]),
+diff --git a/src/platform/mod.rs b/src/platform/mod.rs
+index 8794c26..fed14b7 100644
+--- a/src/platform/mod.rs
++++ b/src/platform/mod.rs
+@@ -14,3 +14,22 @@ pub mod usb_reset;
+ pub mod windows;
+ 
+ pub use capabilities::{FeatureCapability, PlatformCapabilities, PlatformMode};
++
++fn env_flag(name: &str) -> bool {
++    std::env::var(name)
++        .map(|value| {
++            matches!(
++                value.trim().to_ascii_lowercase().as_str(),
++                "1" | "true" | "yes" | "on"
++            )
++        })
++        .unwrap_or(false)
++}
++
++pub fn host_only_mode() -> bool {
++    env_flag("ONE_KVM_FORCE_HOST_ONLY")
++}
++
++pub fn software_only_mode() -> bool {
++    env_flag("ONE_KVM_FORCE_SOFTWARE_ONLY")
++}
+diff --git a/src/web/handlers/config/hid.rs b/src/web/handlers/config/hid.rs
+index 22b78e8..463a94f 100644
+--- a/src/web/handlers/config/hid.rs
++++ b/src/web/handlers/config/hid.rs
+@@ -2,7 +2,7 @@ use axum::{extract::State, Json};
+ use std::sync::Arc;
+ 
+ use crate::config::{HidBackend, HidConfig};
+-use crate::error::Result;
++use crate::error::{AppError, Result};
+ use crate::state::AppState;
+ 
+ use super::apply::{apply_hid_config, try_apply_lock, ConfigApplyOptions};
+@@ -16,6 +16,20 @@ pub async fn update_hid_config(
+     State(state): State<Arc<AppState>>,
+     Json(req): Json<HidConfigUpdate>,
+ ) -> Result<Json<HidConfig>> {
++    let requests_otg = matches!(req.backend.as_ref(), Some(HidBackend::Otg))
++        || req.otg_udc.is_some()
++        || req.otg_descriptor.is_some()
++        || req.otg_profile.is_some()
++        || req.otg_endpoint_budget.is_some()
++        || req.otg_functions.is_some()
++        || req.otg_keyboard_leds.is_some();
++
++    if crate::platform::host_only_mode() && requests_otg {
++        return Err(AppError::BadRequest(
++            "OTG HID is disabled by this host-only firmware".to_string(),
++        ));
++    }
++
+     req.validate()?;
+ 
+     let _apply_guard = try_apply_lock(&state.config_apply_locks.otg, "otg")?;
+diff --git a/src/web/handlers/config/msd.rs b/src/web/handlers/config/msd.rs
+index 783fafd..1445096 100644
+--- a/src/web/handlers/config/msd.rs
++++ b/src/web/handlers/config/msd.rs
+@@ -2,7 +2,7 @@ use axum::{extract::State, Json};
+ use std::sync::Arc;
+ 
+ use crate::config::MsdConfig;
+-use crate::error::Result;
++use crate::error::{AppError, Result};
+ use crate::state::AppState;
+ 
+ use super::apply::{apply_msd_config, try_apply_lock, ConfigApplyOptions};
+@@ -16,6 +16,12 @@ pub async fn update_msd_config(
+     State(state): State<Arc<AppState>>,
+     Json(req): Json<MsdConfigUpdate>,
+ ) -> Result<Json<MsdConfig>> {
++    if crate::platform::host_only_mode() {
++        return Err(AppError::BadRequest(
++            "USB gadget mass storage is disabled by this host-only firmware".to_string(),
++        ));
++    }
++
+     req.validate()?;
+ 
+     let _apply_guard = try_apply_lock(&state.config_apply_locks.otg, "otg")?;
+diff --git a/src/web/handlers/inventory.rs b/src/web/handlers/inventory.rs
+index 5908d1e..1abbcf4 100644
+--- a/src/web/handlers/inventory.rs
++++ b/src/web/handlers/inventory.rs
+@@ -143,10 +143,14 @@ pub async fn list_devices(State(state): State<Arc<AppState>>) -> Json<DeviceList
+         .collect();
+ 
+     #[cfg(unix)]
+-    let udc_devices = crate::otg::list_udc_devices()
+-        .into_iter()
+-        .map(|name| UdcDevice { name })
+-        .collect();
++    let udc_devices = if crate::platform::host_only_mode() {
++        Vec::new()
++    } else {
++        crate::otg::list_udc_devices()
++            .into_iter()
++            .map(|name| UdcDevice { name })
++            .collect()
++    };
+     #[cfg(not(unix))]
+     let udc_devices = Vec::new();
+ 
+diff --git a/src/web/handlers/setup.rs b/src/web/handlers/setup.rs
+index f39e082..a264896 100644
+--- a/src/web/handlers/setup.rs
++++ b/src/web/handlers/setup.rs
+@@ -66,6 +66,14 @@ pub async fn setup_init(
+         ));
+     }
+ 
++    if crate::platform::host_only_mode()
++        && (req.hid_backend.as_deref() == Some("otg") || req.msd_enabled.unwrap_or(false))
++    {
++        return Err(AppError::BadRequest(
++            "OTG and USB gadget mass storage are disabled by this host-only firmware".to_string(),
++        ));
++    }
++
+     // Create single system user
+     state
+         .users
+diff --git a/web/src/components/HidConfigPopover.vue b/web/src/components/HidConfigPopover.vue
+index a075e66..b119ff7 100644
+--- a/web/src/components/HidConfigPopover.vue
++++ b/web/src/components/HidConfigPopover.vue
+@@ -23,6 +23,7 @@ import { MousePointer, Move, Loader2, RefreshCw } from 'lucide-vue-next'
+ import HelpTooltip from '@/components/HelpTooltip.vue'
+ import { configApi } from '@/api'
+ import { useConfigStore } from '@/stores/config'
++import { useSystemStore } from '@/stores/system'
+ import { HidBackend } from '@/types/generated'
+ import type { HidConfigUpdate } from '@/types/generated'
+ 
+@@ -38,6 +39,8 @@ const emit = defineEmits<{
+ 
+ const { t } = useI18n()
+ const configStore = useConfigStore()
++const systemStore = useSystemStore()
++const otgAvailable = computed(() => systemStore.platform?.otg.available ?? false)
+ 
+ const DEFAULT_MOUSE_MOVE_SEND_INTERVAL_MS = 16
+ 
+@@ -333,7 +336,7 @@ watch(() => props.open, (isOpen) => {
+                 <SelectValue />
+               </SelectTrigger>
+               <SelectContent>
+-                <SelectItem :value="HidBackend.Otg" class="text-xs">USB OTG</SelectItem>
++                <SelectItem v-if="otgAvailable" :value="HidBackend.Otg" class="text-xs">USB OTG</SelectItem>
+                 <SelectItem :value="HidBackend.Ch9329" class="text-xs">CH9329 (Serial)</SelectItem>
+                 <SelectItem :value="HidBackend.None" class="text-xs">{{ t('common.disabled') }}</SelectItem>
+               </SelectContent>
+diff --git a/web/src/views/SettingsView.vue b/web/src/views/SettingsView.vue
+index afa7b79..24af319 100644
+--- a/web/src/views/SettingsView.vue
++++ b/web/src/views/SettingsView.vue
+@@ -126,6 +126,7 @@ const featureVisibility = useFeatureVisibility()
+ const isWindows = computed(() => systemStore.platform?.mode === 'windows')
+ const isAndroid = computed(() => systemStore.platform?.mode === 'android_amlogic')
+ const msdAvailable = computed(() => systemStore.platform?.msd.available ?? systemStore.capabilities?.msd.available ?? false)
++const otgAvailable = computed(() => systemStore.platform?.otg.available ?? false)
+ 
+ const activeSection = ref<SettingsSectionId>('appearance')
+ const mobileMenuOpen = ref(false)
+@@ -1444,10 +1445,12 @@ async function saveConfig() {
+         hidUpdate.otg_keyboard_leds = config.value.hid_otg_keyboard_leds
+       }
+       await configStore.updateHid(hidUpdate)
+-      if (config.value.hid_backend === 'otg') {
+-        await configStore.updateMsd({ enabled: config.value.msd_enabled })
+-      } else {
+-        await configStore.updateMsd({ enabled: false })
++      if (msdAvailable.value) {
++        if (config.value.hid_backend === 'otg') {
++          await configStore.updateMsd({ enabled: config.value.msd_enabled })
++        } else {
++          await configStore.updateMsd({ enabled: false })
++        }
+       }
+     }
+ 
+@@ -3033,7 +3036,7 @@ watch(isWindows, () => {
+                   <Label for="hid-backend">{{ t('settings.hidBackend') }}</Label>
+                   <select id="hid-backend" v-model="config.hid_backend" class="w-full h-9 px-3 rounded-md border border-input bg-background text-sm">
+                     <option value="ch9329">CH9329 (Serial)</option>
+-                    <option value="otg">USB OTG</option>
++                    <option v-if="otgAvailable" value="otg">USB OTG</option>
+                     <option value="none">{{ t('common.disabled') }}</option>
+                   </select>
+                 </div>
+@@ -3159,7 +3162,7 @@ watch(isWindows, () => {
+                 </template>
+ 
+                 <!-- OTG Descriptor Settings -->
+-                <template v-if="config.hid_backend === 'otg'">
++                <template v-if="otgAvailable && config.hid_backend === 'otg'">
+                   <Separator class="my-4" />
+                   <div class="space-y-4">
+                     <div>
+@@ -3305,7 +3308,7 @@ watch(isWindows, () => {
+ 
+           <!-- Environment Section -->
+           <div v-show="activeSection === 'environment'" class="space-y-4 max-w-3xl">
+-            <Card>
++            <Card v-if="otgAvailable">
+               <CardHeader class="flex flex-row items-start justify-between space-y-0">
+                 <div class="space-y-1.5">
+                   <CardTitle>{{ t('settings.otgSelfCheck.title') }}</CardTitle>
+diff --git a/web/src/views/SetupView.vue b/web/src/views/SetupView.vue
+index e8cbadc..5bdab41 100644
+--- a/web/src/views/SetupView.vue
++++ b/web/src/views/SetupView.vue
+@@ -70,6 +70,7 @@ const audioEnabled = ref(true)
+ const platform = ref<PlatformCapabilities | null>(null)
+ const isWindows = computed(() => platform.value?.mode === 'windows')
+ const audioSupported = computed(() => platform.value?.audio.available ?? true)
++const otgSupported = computed(() => platform.value?.otg.available ?? !isWindows.value)
+ const totalSteps = 4
+ 
+ const hidBackend = ref('ch9329')
+@@ -903,7 +904,7 @@ const stepIcons = [User, Video, Keyboard, Puzzle]
+                   <SelectItem value="ch9329">
+                     CH9329 ({{ t('setup.serialHid') }})
+                   </SelectItem>
+-                  <SelectItem v-if="!isWindows" value="otg">USB OTG</SelectItem>
++                  <SelectItem v-if="otgSupported" value="otg">USB OTG</SelectItem>
+                 </SelectContent>
+               </Select>
+             </div>
+@@ -948,7 +949,7 @@ const stepIcons = [User, Video, Keyboard, Puzzle]
+             </div>
+ 
+             <!-- OTG Settings -->
+-            <div v-if="hidBackend === 'otg' && !isWindows" class="space-y-4 p-4 rounded-lg bg-muted/50">
++            <div v-if="hidBackend === 'otg' && otgSupported" class="space-y-4 p-4 rounded-lg bg-muted/50">
+               <div class="flex items-start gap-2 text-sm text-muted-foreground mb-2">
+                 <HelpCircle class="w-4 h-4 mt-0.5 shrink-0" />
+                 <p>{{ t('setup.otgHelp') }}</p>
