@@ -8,10 +8,14 @@ exists() {
 	[ -e "$1" ] && printf 1 || printf 0
 }
 
-video_count="$(ls /dev/video* 2>/dev/null | wc -l | tr -d ' ')"
-tty_count="$(ls /dev/ttyUSB* 2>/dev/null | wc -l | tr -d ' ')"
+count_paths() {
+	find "$1" -maxdepth 1 -name "$2" 2>/dev/null | wc -l | tr -d ' '
+}
+
+video_count="$(count_paths /dev 'video*')"
+tty_count="$(count_paths /dev 'ttyUSB*')"
 ch9329_exists="$(exists /dev/ch9329)"
-udc_count="$(ls /sys/class/udc 2>/dev/null | wc -l | tr -d ' ')"
+udc_count="$(count_paths /sys/class/udc '*')"
 
 printf '{'
 printf '"video_count":%s,' "${video_count:-0}"
