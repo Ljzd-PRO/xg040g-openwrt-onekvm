@@ -19,12 +19,14 @@ cp "$build_dir/BUILD-METADATA.json" "$release_dir/$asset_prefix-build-metadata.j
 if [[ "$profile" == "onekvm" ]]; then
 	test -s "$build_dir/APK-METADATA.json"
 	cp "$build_dir/APK-METADATA.json" "$release_dir/$asset_prefix-apk-metadata.json"
-	mapfile -t apk_files < <(find "$build_dir/apk" -maxdepth 1 -type f -name '*.apk' -print | sort)
-	if [[ "${#apk_files[@]}" -ne 3 ]]; then
-		echo "Expected three standalone One-KVM APK assets, found ${#apk_files[@]}." >&2
+	apk_count="$(find "$build_dir/apk" -maxdepth 1 -type f -name '*.apk' -print | wc -l | tr -d " ")"
+	if [[ "$apk_count" -ne 3 ]]; then
+		echo "Expected three standalone One-KVM APK assets, found $apk_count." >&2
 		exit 1
 	fi
-	cp "${apk_files[@]}" "$release_dir/"
+	find "$build_dir/apk" -maxdepth 1 -type f -name '*.apk' -print | sort | while IFS= read -r apk_file; do
+		cp "$apk_file" "$release_dir/"
+	done
 fi
 
 for name in config.buildinfo feeds.buildinfo version.buildinfo profiles.json; do

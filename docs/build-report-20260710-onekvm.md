@@ -50,6 +50,9 @@ Passed:
 - `./scripts/validate.sh`
 - `git diff --check`
 - `shasum -a 256 -c output/onekvm-formal-20260710-192355/SHA256SUMS.local`
+- `./scripts/build.sh onekvm --incremental --offline --jobs 10`
+- `./scripts/package-release.sh onekvm output/onekvm-formal-20260710-192355 dist/onekvm-formal-20260710-192355-release`
+- `shasum -a 256 -c dist/onekvm-formal-20260710-192355-release/SHA256SUMS`
 
 The `onekvm` manifest contains the expected full-profile runtime packages,
 including:
@@ -78,6 +81,16 @@ confidence check at `output/onekvm-offline-20260710-202232`. It reached the
 Node/V8 host build stage, but did not complete because the local machine was
 restarted. It was not resumed, and should not be counted as a passed release
 gate.
+
+A new hot-cache offline `onekvm` build was completed successfully at
+`output/onekvm-offline-20260711-032805`.
+
+- Offline flags: `ONE_KVM_CARGO_OFFLINE=1`, `ONE_KVM_NPM_OFFLINE=1`
+- Exit status: `0`
+- Elapsed wall time: `29:09.10`
+- Maximum resident set size: `2,588,696 KiB`
+- Swaps: `0`
+- Output verification: passed
 
 Device flashing and runtime smoke tests were intentionally skipped per user
 instruction. The following checks remain pending until a later flash/test
