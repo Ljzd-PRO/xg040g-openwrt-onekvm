@@ -1,0 +1,133 @@
+#!/bin/sh
+set -eu
+
+PXE_PORT="${PXE_PORT:-lan4}"
+PXE_IF="${PXE_IF:-pxe}"
+PXE_BR="${PXE_BR:-br-pxe}"
+PXE_IP="${PXE_IP:-10.40.0.1}"
+PXE_NETMASK="${PXE_NETMASK:-255.255.255.0}"
+PXE_RANGE_START="${PXE_RANGE_START:-10.40.0.100}"
+PXE_RANGE_END="${PXE_RANGE_END:-10.40.0.200}"
+STORE="${KVMSTORE:-/mnt/kvmstore}"
+DNSMASQ_SNIPPET="/etc/dnsmasq.d/kvm-pxe.conf"
+
+usage() {
+	echo "Usage: kvm-lite-setup [status|apply]"
+}
+
+ensure_dirs() {
+	mkdir -p "$STORE/tftp" "$STORE/netboot" "$STORE/iso" "$STORE/cloud-cache" "$STORE/secrets"
+	mkdir -p /www
+	rm -f /www/kvmboot
+	ln -s "$STORE/netboot" /www/kvmboot
+}
+
+configure_fstab() {
+	uci -q delete fstab.kvmstore || true
+	uci set fstab.kvmstore='mount'
+	uci set fstab.kvmstore.target="$STORE"
+	uci set fstab.kvmstore.label='KVMSTORE'
+	uci set fstab.kvmstore.enabled='1'
+	uci set fstab.kvmstore.enabled_fsck='0'
+	uci set fstab.kvmstore.options='rw,noatime'
+	uci commit fstab
+	/etc/init.d/fstab enable >/dev/null 2>&1 || true
+	block mount >/dev/null 2>&1 || true
+}
+
+ssh_client_on_pxe_port() {
+	client="$(echo "${SSH_CONNECTION:-}" | awk '{print $1}')"
+	[ -n "$client" ] || return 1
+	mac="$(ip neigh show "$client" 2>/dev/null | awk '{
+		for (i = 1; i <= NF; i++)
+			if ($i == "lladdr") {
+				print $(i + 1)
+				exit
+			}
+	}')"
+	[ -n "$mac" ] || return 1
+	bridge fdb show br br-lan 2>/dev/null | awk -v mac="$mac" -v port="$PXE_PORT" '
+		tolower($0) ~ tolower(mac) && $0 ~ ("dev " port) { found = 1 }
+		END { exit found ? 0 : 1 }
+	'
+}
+
+configure_network() {
+	if ssh_client_on_pxe_port; then
+		echo "Refusing to move $PXE_PORT: current SSH client appears to be learned on $PXE_PORT." >&2
+		echo "Move the management cable to lan2/lan3, reconnect SSH, then rerun kvm-lite-setup apply." >&2
+		exit 42
+	fi
+
+	brlan="$(uci -q show network | sed -n "s/^\(network\.[^.]*\)\.name='br-lan'.*/\1/p" | head -n 1)"
+	if [ -n "$brlan" ]; then
+		uci -q del_list "$brlan.ports=$PXE_PORT" || true
+	fi
+
+	uci -q delete "network.${PXE_IF}" || true
+	uci -q delete "network.${PXE_IF}_dev" || true
+	uci set "network.${PXE_IF}_dev=device"
+	uci set "network.${PXE_IF}_dev.type=bridge"
+	uci set "network.${PXE_IF}_dev.name=$PXE_BR"
+	uci add_list "network.${PXE_IF}_dev.ports=$PXE_PORT"
+	uci set "network.${PXE_IF}=interface"
+	uci set "network.${PXE_IF}.device=$PXE_BR"
+	uci set "network.${PXE_IF}.proto=static"
+	uci set "network.${PXE_IF}.ipaddr=$PXE_IP"
+	uci set "network.${PXE_IF}.netmask=$PXE_NETMASK"
+	uci commit network
+}
+
+configure_dnsmasq() {
+	mkdir -p /etc/dnsmasq.d
+	uci -q del_list dhcp.@dnsmasq[0].confdir='/etc/dnsmasq.d' || true
+	uci -q add_list dhcp.@dnsmasq[0].confdir='/etc/dnsmasq.d' || true
+	uci set dhcp.@dnsmasq[0].enable_tftp='1'
+	uci set dhcp.@dnsmasq[0].tftp_root="$STORE/tftp"
+	uci set dhcp.@dnsmasq[0].tftp_no_fail='1'
+	uci commit dhcp
+
+	cat > "$DNSMASQ_SNIPPET" <<EOF
+# XG-040G-MD One-KVM-lite PXE service. Managed by kvm-lite-setup.
+dhcp-range=set:kvm_pxe,$PXE_RANGE_START,$PXE_RANGE_END,$PXE_NETMASK,12h
+dhcp-match=set:kvm_efi64,option:client-arch,7
+dhcp-match=set:kvm_efi64,option:client-arch,9
+dhcp-match=set:kvm_efi64,option:client-arch,11
+dhcp-boot=tag:kvm_pxe,tag:kvm_efi64,ipxe.efi
+dhcp-boot=tag:kvm_pxe,tag:!kvm_efi64,undionly.kpxe
+EOF
+}
+
+status() {
+	echo "KVMSTORE=$STORE"
+	if grep -qs " $STORE " /proc/mounts; then
+		echo "STORE_MOUNTED=1"
+	else
+		echo "STORE_MOUNTED=0"
+	fi
+	[ -L /www/kvmboot ] && echo "HTTP_LINK=/www/kvmboot -> $(readlink /www/kvmboot)" || echo "HTTP_LINK=missing"
+	uci -q show network."$PXE_IF" || true
+	uci -q show network."${PXE_IF}_dev" || true
+	[ -f "$DNSMASQ_SNIPPET" ] && echo "PXE_DNSMASQ_SNIPPET=$DNSMASQ_SNIPPET" || echo "PXE_DNSMASQ_SNIPPET=missing"
+}
+
+cmd="${1:-status}"
+case "$cmd" in
+	status)
+		status
+		;;
+	apply)
+		ensure_dirs
+		configure_fstab
+		configure_network
+		configure_dnsmasq
+		/etc/init.d/uhttpd restart >/dev/null 2>&1 || true
+		/etc/init.d/dnsmasq restart >/dev/null 2>&1 || true
+		/etc/init.d/network reload >/dev/null 2>&1 || true
+		status
+		;;
+	*)
+		usage >&2
+		exit 64
+		;;
+esac

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+case "${PRODUCT:-}" in
+	1a86/7523/*|1a86/5523/*)
+		case "${ACTION:-}" in
+			add)
+				[ -n "${DEVICENAME:-}" ] && ln -sf "/dev/$DEVICENAME" /dev/ch9329
+				;;
+			remove)
+				[ "$(readlink /dev/ch9329 2>/dev/null || true)" = "/dev/${DEVICENAME:-}" ] && rm -f /dev/ch9329
+				;;
+		esac
+		;;
+esac

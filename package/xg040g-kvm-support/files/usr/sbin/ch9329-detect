@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+find_ch34x() {
+	for tty_path in /sys/class/tty/ttyUSB*; do
+		[ -e "$tty_path" ] || continue
+		device="$(readlink -f "$tty_path/device")"
+
+		while [ "$device" != "/" ]; do
+			if [ -r "$device/idVendor" ] && [ -r "$device/idProduct" ]; then
+				vendor="$(cat "$device/idVendor")"
+				product="$(cat "$device/idProduct")"
+				case "$vendor:$product" in
+					1a86:7523|1a86:5523)
+						basename "$tty_path"
+						return 0
+						;;
+				esac
+			fi
+			device="$(dirname "$device")"
+		done
+	done
+
+	return 1
+}
+
+tty_name="$(find_ch34x || true)"
+if [ -n "$tty_name" ]; then
+	ln -sf "/dev/$tty_name" /dev/ch9329
+	echo "CH9329_LINK=/dev/ch9329 -> /dev/$tty_name"
+else
+	rm -f /dev/ch9329
+	echo "CH9329_LINK=missing"
+fi
+
+echo "Recent CH34x/serial dmesg:"
+dmesg | grep -Ei 'ch34|ch341|ch340|ttyUSB|usb serial' | tail -n 80 || true
+

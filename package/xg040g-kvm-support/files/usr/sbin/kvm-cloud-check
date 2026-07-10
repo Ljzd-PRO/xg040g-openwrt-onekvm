@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+STORE="${KVMSTORE:-/mnt/kvmstore}"
+CONF="${RCLONE_CONFIG_FILE:-$STORE/secrets/rclone.conf}"
+REMOTE="${KVM_RCLONE_REMOTE:-kvmcloud:}"
+
+if [ ! -s "$CONF" ]; then
+	echo "Missing rclone config: $CONF"
+	echo "Create it later with rclone config, then place it at $CONF."
+	exit 2
+fi
+
+remote_name="${REMOTE%%:*}:"
+if ! rclone --config "$CONF" listremotes | grep -Fxq "$remote_name"; then
+	echo "Remote $remote_name not found in $CONF"
+	exit 3
+fi
+
+rclone --config "$CONF" lsd "$REMOTE"

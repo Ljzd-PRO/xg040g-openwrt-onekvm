@@ -1,0 +1,39 @@
+#!/bin/sh
+set -eu
+
+STORE="${KVMSTORE:-/mnt/kvmstore}"
+CONF="${RCLONE_CONFIG_FILE:-$STORE/secrets/rclone.conf}"
+REMOTE_ROOT="${KVM_RCLONE_SOURCE:-kvmcloud:/xg040g-kvmstore}"
+CACHE="$STORE/cloud-cache"
+DRY_RUN=0
+
+case "${1:-}" in
+	--dry-run) DRY_RUN=1 ;;
+	"") ;;
+	*)
+		echo "Usage: kvm-cloud-sync [--dry-run]" >&2
+		exit 64
+		;;
+esac
+
+if [ ! -s "$CONF" ]; then
+	echo "Missing rclone config: $CONF"
+	exit 2
+fi
+
+mkdir -p "$CACHE" "$STORE/tftp" "$STORE/netboot" "$STORE/iso"
+
+opts=""
+[ "$DRY_RUN" = "1" ] && opts="--dry-run"
+
+echo "Syncing $REMOTE_ROOT -> $CACHE"
+rclone --config "$CONF" sync $opts --create-empty-src-dirs "$REMOTE_ROOT" "$CACHE"
+
+for dir in tftp netboot iso; do
+	if [ -d "$CACHE/$dir" ]; then
+		echo "Refreshing $STORE/$dir"
+		rclone sync $opts --create-empty-src-dirs "$CACHE/$dir" "$STORE/$dir"
+	else
+		echo "Skipping missing cloud-cache/$dir"
+	fi
+done

@@ -1,0 +1,34 @@
+#!/bin/sh
+set -eu
+
+LINE="17 3 * * * /usr/sbin/kvm-cloud-sync >/tmp/kvm-cloud-sync.log 2>&1"
+CRON="/etc/crontabs/root"
+
+mkdir -p /etc/crontabs
+touch "$CRON"
+
+case "${1:-status}" in
+	enable)
+		grep -Fqx "$LINE" "$CRON" || echo "$LINE" >> "$CRON"
+		/etc/init.d/cron enable >/dev/null 2>&1 || true
+		/etc/init.d/cron restart >/dev/null 2>&1 || true
+		echo "kvm-cloud-sync cron enabled"
+		;;
+	disable)
+		grep -Fvx "$LINE" "$CRON" > "$CRON.tmp" || true
+		mv "$CRON.tmp" "$CRON"
+		/etc/init.d/cron restart >/dev/null 2>&1 || true
+		echo "kvm-cloud-sync cron disabled"
+		;;
+	status)
+		if grep -Fqx "$LINE" "$CRON"; then
+			echo "enabled"
+		else
+			echo "disabled"
+		fi
+		;;
+	*)
+		echo "Usage: kvm-cloud-cron [enable|disable|status]" >&2
+		exit 64
+		;;
+esac
