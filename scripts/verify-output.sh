@@ -64,7 +64,7 @@ if [[ "$profile" == "onekvm" ]]; then
 		libyuv
 		libx264
 		libx265
-		libvpx
+		libvpx1.16
 		libffmpeg-onekvm
 		gpiod-tools
 		kmod-hid
@@ -116,9 +116,9 @@ fi
 
 if [[ "$profile" == "onekvm" ]]; then
 	for package in one-kvm luci-app-one-kvm luci-i18n-one-kvm-zh-cn; do
-		mapfile -t apks < <(find "$out_dir/apk" -maxdepth 1 -type f -name "${package}-*.apk" -print)
-		if [[ "${#apks[@]}" -ne 1 ]]; then
-			echo "Expected exactly one exported APK for $package, found ${#apks[@]}." >&2
+		apk_count="$(find "$out_dir/apk" -maxdepth 1 -type f -name "${package}-*.apk" -print | wc -l | tr -d " ")"
+		if [[ "$apk_count" -ne 1 ]]; then
+			echo "Expected exactly one exported APK for $package, found $apk_count." >&2
 			exit 1
 		fi
 		jq -e --arg package "$package" '.packages[] | select(.name == $package)' \
