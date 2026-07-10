@@ -24,7 +24,6 @@ define Package/libffmpeg-onekvm
   TITLE:=Focused FFmpeg runtime for One-KVM software encoding
   URL:=https://ffmpeg.org/
   DEPENDS:=+libatomic +libpthread +libstdcpp +libvpx +libx264 +libx265 @BUILD_PATENTED
-  CONFLICTS:=libffmpeg-mini libffmpeg-full libffmpeg-custom libffmpeg-audio-dec
 endef
 
 define Package/libffmpeg-onekvm/description
