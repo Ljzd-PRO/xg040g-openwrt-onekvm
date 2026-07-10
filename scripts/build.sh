@@ -135,9 +135,15 @@ docker_args=(
 )
 
 if [[ "$source_mode" == "isolated" ]]; then
-	work_volume="${WORK_VOLUME:-xg040g-openwrt-$profile-work}"
-	docker volume create "$work_volume" >/dev/null
-	docker_args+=( -v "$work_volume:/work" )
+	if [[ -n "${WORK_DIR:-}" ]]; then
+		mkdir -p "$WORK_DIR"
+		work_dir="$(cd "$WORK_DIR" && pwd)"
+		docker_args+=( -v "$work_dir:/work" )
+	else
+		work_volume="${WORK_VOLUME:-xg040g-openwrt-$profile-work}"
+		docker volume create "$work_volume" >/dev/null
+		docker_args+=( -v "$work_volume:/work" )
+	fi
 else
 	docker_args+=( -v "$repo_root/upstream/openwrt:/work/openwrt" )
 fi
