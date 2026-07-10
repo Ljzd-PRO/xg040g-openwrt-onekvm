@@ -1,0 +1,72 @@
+diff --git a/package/kernel/linux/modules/usb.mk b/package/kernel/linux/modules/usb.mk
+--- a/package/kernel/linux/modules/usb.mk
++++ b/package/kernel/linux/modules/usb.mk
+@@ -123,6 +123,27 @@ define AddDepends/usbgadget
+ endef
+ 
+ 
++define KernelPackage/usb-mtu3
++  TITLE:=MediaTek USB3 Dual Role controller
++  DEPENDS:=@TARGET_airoha_an7581
++  KCONFIG:= \
++	CONFIG_USB_MTU3 \
++	CONFIG_USB_MTU3_GADGET=y \
++	CONFIG_USB_MTU3_HOST=n \
++	CONFIG_USB_MTU3_DUAL_ROLE=n \
++	CONFIG_USB_MTU3_DEBUG=n
++  FILES:=$(LINUX_DIR)/drivers/usb/mtu3/mtu3.ko
++  AUTOLOAD:=$(call AutoLoad,45,mtu3,1)
++  $(call AddDepends/usbgadget)
++endef
++
++define KernelPackage/usb-mtu3/description
++ Kernel support for MediaTek MTU3 USB gadget/peripheral controller.
++endef
++
++$(eval $(call KernelPackage,usb-mtu3))
++
++
+ define KernelPackage/usb-lib-composite
+   TITLE:=USB lib composite
+   KCONFIG:=CONFIG_USB_LIBCOMPOSITE
+diff --git a/target/linux/airoha/dts/an7581-nokia_xg-040g-md-common.dtsi b/target/linux/airoha/dts/an7581-nokia_xg-040g-md-common.dtsi
+--- a/target/linux/airoha/dts/an7581-nokia_xg-040g-md-common.dtsi
++++ b/target/linux/airoha/dts/an7581-nokia_xg-040g-md-common.dtsi
+@@ -320,8 +320,14 @@
+ };
+ 
+ &usb0 {
++	compatible = "mediatek,mt8173-mtu3", "mediatek,mtu3";
+ 	status = "okay";
+ 
++	dr_mode = "peripheral";
++	interrupt-names = "device";
++	maximum-speed = "high-speed";
++	mediatek,u3p-dis-msk = <0x1>;
++	phys = <&usb0_phy PHY_TYPE_USB2>;
+ 	vusb33-supply = <&reg_3p3v>;
+ 
+ 	#address-cells = <1>;
+diff --git a/target/linux/airoha/patches-6.18/220-09-usb-mtu3-allow-ARCH_AIROHA.patch b/target/linux/airoha/patches-6.18/220-09-usb-mtu3-allow-ARCH_AIROHA.patch
+new file mode 100644
+--- /dev/null
++++ b/target/linux/airoha/patches-6.18/220-09-usb-mtu3-allow-ARCH_AIROHA.patch
+@@ -0,0 +1,18 @@
++From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
++From: Codex <codex@local>
++Date: Thu, 9 Jul 2026 14:00:00 +0800
++Subject: [PATCH] usb: mtu3: allow building on Airoha SoCs
++
++AN7581 carries MediaTek-derived USB controller blocks. Allow the MTU3
++driver to be selected on ARCH_AIROHA for XG-040G-MD UDC probing.
++
++--- a/drivers/usb/mtu3/Kconfig
+++++ b/drivers/usb/mtu3/Kconfig
++@@ -5,7 +5,7 @@ config USB_MTU3
++ 	tristate "MediaTek USB3 Dual Role controller"
++ 	depends on USB || USB_GADGET
++-	depends on ARCH_MEDIATEK || COMPILE_TEST
+++	depends on ARCH_MEDIATEK || ARCH_AIROHA || COMPILE_TEST
++ 	depends on EXTCON || !EXTCON
++ 	select USB_XHCI_MTK if USB_SUPPORT && USB_XHCI_HCD
++ 	help

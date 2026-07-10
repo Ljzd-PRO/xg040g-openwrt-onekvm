@@ -1,0 +1,214 @@
+diff --git a/package/kernel/linux/modules/usb.mk b/package/kernel/linux/modules/usb.mk
+--- a/package/kernel/linux/modules/usb.mk
++++ b/package/kernel/linux/modules/usb.mk
+@@ -123,6 +123,27 @@ define AddDepends/usbgadget
+ endef
+ 
+ 
++define KernelPackage/usb-mtu3
++  TITLE:=MediaTek USB3 Dual Role controller
++  DEPENDS:=@TARGET_airoha_an7581
++  KCONFIG:= \
++	CONFIG_USB_MTU3 \
++	CONFIG_USB_MTU3_GADGET=y \
++	CONFIG_USB_MTU3_HOST=n \
++	CONFIG_USB_MTU3_DUAL_ROLE=n \
++	CONFIG_USB_MTU3_DEBUG=n
++  FILES:=$(LINUX_DIR)/drivers/usb/mtu3/mtu3.ko
++  AUTOLOAD:=$(call AutoLoad,45,mtu3,1)
++  $(call AddDepends/usbgadget)
++endef
++
++define KernelPackage/usb-mtu3/description
++ Kernel support for MediaTek MTU3 USB gadget/peripheral controller.
++endef
++
++$(eval $(call KernelPackage,usb-mtu3))
++
++
+ define KernelPackage/usb-lib-composite
+   TITLE:=USB lib composite
+   KCONFIG:=CONFIG_USB_LIBCOMPOSITE
+diff --git a/target/linux/airoha/dts/an7581-nokia_xg-040g-md-common.dtsi b/target/linux/airoha/dts/an7581-nokia_xg-040g-md-common.dtsi
+--- a/target/linux/airoha/dts/an7581-nokia_xg-040g-md-common.dtsi
++++ b/target/linux/airoha/dts/an7581-nokia_xg-040g-md-common.dtsi
+@@ -320,8 +320,14 @@
+ };
+ 
+ &usb0 {
++	compatible = "mediatek,mt8173-mtu3", "mediatek,mtu3";
+ 	status = "okay";
+ 
++	dr_mode = "peripheral";
++	interrupt-names = "device";
++	maximum-speed = "high-speed";
++	mediatek,u3p-dis-msk = <0x1>;
++	phys = <&usb0_phy PHY_TYPE_USB2>;
+ 	vusb33-supply = <&reg_3p3v>;
+ 
+ 	#address-cells = <1>;
+diff --git a/target/linux/airoha/patches-6.18/220-09-usb-mtu3-allow-ARCH_AIROHA.patch b/target/linux/airoha/patches-6.18/220-09-usb-mtu3-allow-ARCH_AIROHA.patch
+new file mode 100644
+--- /dev/null
++++ b/target/linux/airoha/patches-6.18/220-09-usb-mtu3-allow-ARCH_AIROHA.patch
+@@ -0,0 +1,18 @@
++From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
++From: Codex <codex@local>
++Date: Thu, 9 Jul 2026 14:00:00 +0800
++Subject: [PATCH] usb: mtu3: allow building on Airoha SoCs
++
++AN7581 carries MediaTek-derived USB controller blocks. Allow the MTU3
++driver to be selected on ARCH_AIROHA for XG-040G-MD UDC probing.
++
++--- a/drivers/usb/mtu3/Kconfig
+++++ b/drivers/usb/mtu3/Kconfig
++@@ -5,7 +5,7 @@ config USB_MTU3
++ 	tristate "MediaTek USB3 Dual Role controller"
++ 	depends on USB || USB_GADGET
++-	depends on ARCH_MEDIATEK || COMPILE_TEST
+++	depends on ARCH_MEDIATEK || ARCH_AIROHA || COMPILE_TEST
++ 	depends on EXTCON || !EXTCON
++ 	select USB_XHCI_MTK if USB_SUPPORT && USB_XHCI_HCD
++ 	help
+diff --git a/target/linux/airoha/patches-6.18/220-10-usb-mtu3-endpoint-diag.patch b/target/linux/airoha/patches-6.18/220-10-usb-mtu3-endpoint-diag.patch
+new file mode 100644
+--- /dev/null
++++ b/target/linux/airoha/patches-6.18/220-10-usb-mtu3-endpoint-diag.patch
+@@ -0,0 +1,137 @@
++From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
++From: Codex <codex@local>
++Date: Thu, 9 Jul 2026 14:30:00 +0800
++Subject: [PATCH] usb: mtu3: add AN7581 endpoint diagnostic logging
++
++Add temporary read-only diagnostics for XG-040G-MD MTU3 endpoint probing.
++The logs expose resource windows, PHY count and capability registers without
++writing any registers outside the normal upstream MTU3 init path.
++
++--- a/drivers/usb/mtu3/mtu3_core.c
+++++ b/drivers/usb/mtu3/mtu3_core.c
++@@ -589,6 +589,28 @@ static void get_ep_fifo_config(struct mt
++ 		rx_fifo->base, rx_fifo->limit);
++ }
++ 
+++static void mtu3_diag_dump_mac_caps(struct mtu3 *mtu)
+++{
+++	static const struct {
+++		const char *name;
+++		u32 offset;
+++	} regs[] = {
+++		{ "CAP_EP0FFSZ", U3D_CAP_EP0FFSZ },
+++		{ "CAP_EPNTXFFSZ", U3D_CAP_EPNTXFFSZ },
+++		{ "CAP_EPNRXFFSZ", U3D_CAP_EPNRXFFSZ },
+++		{ "CAP_EPINFO", U3D_CAP_EPINFO },
+++		{ "MISC_CTRL", U3D_MISC_CTRL },
+++		{ "DEVICE_CONF", U3D_DEVICE_CONF },
+++		{ "EP_RST", U3D_EP_RST },
+++	};
+++	int i;
+++
+++	for (i = 0; i < ARRAY_SIZE(regs); i++)
+++		dev_info(mtu->dev, "mtu3-diag mac %s offset=%#06x value=%#010x\n",
+++			 regs[i].name, regs[i].offset,
+++			 mtu3_readl(mtu->mac_base, regs[i].offset));
+++}
+++
++ static void mtu3_ep0_setup(struct mtu3 *mtu)
++ {
++ 	u32 maxpacket = mtu->g.ep0->maxpacket;
++@@ -606,6 +627,8 @@ static int mtu3_mem_alloc(struct mtu3 *m
++ 	in_ep_num = CAP_TX_EP_NUM(cap_epinfo);
++ 	out_ep_num = CAP_RX_EP_NUM(cap_epinfo);
++ 
+++	mtu3_diag_dump_mac_caps(mtu);
+++
++ 	dev_info(mtu->dev, "fifosz/epnum: Tx=%#x/%d, Rx=%#x/%d\n",
++ 		 mtu3_readl(mbase, U3D_CAP_EPNTXFFSZ), in_ep_num,
++ 		 mtu3_readl(mbase, U3D_CAP_EPNRXFFSZ), out_ep_num);
++--- a/drivers/usb/mtu3/mtu3_plat.c
+++++ b/drivers/usb/mtu3/mtu3_plat.c
++@@ -201,15 +201,68 @@ static void ssusb_u3_drd_check(struct ss
++ 	dev_info(ssusb->dev, "usb3-drd: %d\n", otg_sx->is_u3_drd);
++ }
++ 
+++static void ssusb_diag_dump_resource(struct platform_device *pdev,
+++				     const char *name)
+++{
+++	struct resource *res;
+++
+++	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
+++	if (res)
+++		dev_info(&pdev->dev, "mtu3-diag resource %s: %pR\n",
+++			 name, res);
+++	else
+++		dev_info(&pdev->dev, "mtu3-diag resource %s: missing\n",
+++			 name);
+++}
+++
+++static void ssusb_diag_dump_ippc(struct ssusb_mtk *ssusb, const char *stage)
+++{
+++	static const struct {
+++		const char *name;
+++		u32 offset;
+++	} regs[] = {
+++		{ "IP_PW_CTRL0", U3D_SSUSB_IP_PW_CTRL0 },
+++		{ "IP_PW_CTRL1", U3D_SSUSB_IP_PW_CTRL1 },
+++		{ "IP_PW_CTRL2", U3D_SSUSB_IP_PW_CTRL2 },
+++		{ "IP_PW_CTRL3", U3D_SSUSB_IP_PW_CTRL3 },
+++		{ "IP_PW_STS1", U3D_SSUSB_IP_PW_STS1 },
+++		{ "IP_PW_STS2", U3D_SSUSB_IP_PW_STS2 },
+++		{ "OTG_STS", U3D_SSUSB_OTG_STS },
+++		{ "IP_XHCI_CAP", U3D_SSUSB_IP_XHCI_CAP },
+++		{ "IP_DEV_CAP", U3D_SSUSB_IP_DEV_CAP },
+++		{ "U3_CTRL_0P", U3D_SSUSB_U3_CTRL_0P },
+++		{ "U2_CTRL_0P", U3D_SSUSB_U2_CTRL_0P },
+++		{ "DEV_RST_CTRL", U3D_SSUSB_DEV_RST_CTRL },
+++		{ "HW_ID", U3D_SSUSB_HW_ID },
+++		{ "HW_SUB_ID", U3D_SSUSB_HW_SUB_ID },
+++	};
+++	int i;
+++
+++	for (i = 0; i < ARRAY_SIZE(regs); i++)
+++		dev_info(ssusb->dev,
+++			 "mtu3-diag ippc[%s] %s offset=%#06x value=%#010x\n",
+++			 stage, regs[i].name, regs[i].offset,
+++			 mtu3_readl(ssusb->ippc_base, regs[i].offset));
+++}
+++
++ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
++ {
++ 	struct device_node *node = pdev->dev.of_node;
++ 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
++ 	struct clk_bulk_data *clks = ssusb->clks;
++ 	struct device *dev = &pdev->dev;
+++	const char *compat;
++ 	int i;
++ 	int ret;
++ 
+++	if (!of_property_read_string(node, "compatible", &compat))
+++		dev_info(dev, "mtu3-diag compatible[0]: %s\n", compat);
+++	else
+++		dev_info(dev, "mtu3-diag compatible[0]: unavailable\n");
+++
+++	ssusb_diag_dump_resource(pdev, "mac");
+++	ssusb_diag_dump_resource(pdev, "ippc");
+++
++ 	ssusb->vusb33 = devm_regulator_get(dev, "vusb33");
++ 	if (IS_ERR(ssusb->vusb33)) {
++ 		dev_err(dev, "failed to get vusb33\n");
++@@ -231,6 +279,8 @@ static int get_ssusb_rscs(struct platfor
++ 		ssusb->num_phys = 0;
++ 	}
++ 
+++	dev_info(dev, "mtu3-diag num_phys: %d\n", ssusb->num_phys);
+++
++ 	for (i = 0; i < ssusb->num_phys; i++) {
++ 		ssusb->phys[i] = devm_of_phy_get_by_index(dev, node, i);
++ 		if (IS_ERR(ssusb->phys[i])) {
++@@ -367,6 +417,7 @@ static int mtu3_probe(struct platform_de
++ 
++ 	ssusb_ip_sw_reset(ssusb);
++ 	ssusb_u3_drd_check(ssusb);
+++	ssusb_diag_dump_ippc(ssusb, "post-reset");
++ 
++ 	if (IS_ENABLED(CONFIG_USB_MTU3_HOST))
++ 		ssusb->dr_mode = USB_DR_MODE_HOST;

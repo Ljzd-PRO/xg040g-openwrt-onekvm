@@ -1,0 +1,31 @@
+diff --git a/target/linux/airoha/dts/an7581-nokia_xg-040g-md-common.dtsi b/target/linux/airoha/dts/an7581-nokia_xg-040g-md-common.dtsi
+--- a/target/linux/airoha/dts/an7581-nokia_xg-040g-md-common.dtsi
++++ b/target/linux/airoha/dts/an7581-nokia_xg-040g-md-common.dtsi
+@@ -320,14 +320,8 @@
+ };
+ 
+ &usb0 {
+-	compatible = "mediatek,mt8173-mtu3", "mediatek,mtu3";
+ 	status = "okay";
+ 
+-	dr_mode = "peripheral";
+-	interrupt-names = "device";
+-	maximum-speed = "high-speed";
+-	mediatek,u3p-dis-msk = <0x1>;
+-	phys = <&usb0_phy PHY_TYPE_USB2>;
+ 	vusb33-supply = <&reg_3p3v>;
+ 
+ 	#address-cells = <1>;
+@@ -342,8 +336,12 @@
+ };
+ 
+ &usb1 {
++	compatible = "mediatek,mt8173-mtu3", "mediatek,mtu3";
+ 	status = "okay";
+ 
++	dr_mode = "peripheral";
++	interrupt-names = "device";
++	maximum-speed = "high-speed";
+ 	mediatek,u3p-dis-msk = <0x1>;
+ 	phys = <&usb1_phy PHY_TYPE_USB2>;
+ 	vusb33-supply = <&reg_3p3v>;
