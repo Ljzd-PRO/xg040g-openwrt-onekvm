@@ -4,6 +4,9 @@ This repository is the shareable project root. Do not publish the parent
 scratch directory that contains device backups, captured stock-firmware pages,
 temporary downloads, build outputs, or local credentials.
 
+For a maintainer-oriented map of every top-level directory and common
+development workflows, see `docs/structure.md`.
+
 ## What belongs in GitHub
 
 - `.github/workflows/firmware.yml`: CI build and prerelease publishing.
