@@ -2,3 +2,7 @@
 	path = upstream/openwrt
 	url = https://github.com/openwrt/openwrt.git
 	shallow = true
+[submodule "upstream/one-kvm"]
+	path = upstream/one-kvm
+	url = https://github.com/mofeng-git/One-KVM.git
+	shallow = true

@@ -1,2 +1,3 @@
 # name|path|url|commit|version
 openwrt|upstream/openwrt|https://github.com/openwrt/openwrt.git|4984eff3c34a5b8d7995e2b2a0a3823bba31c1fc|snapshot
+one-kvm|upstream/one-kvm|https://github.com/mofeng-git/One-KVM.git|7753c83e27d20ba31d19daafdddedada7e89e32c|v260626-0.2.3
