@@ -5,6 +5,6 @@
 - `luci-app-one-kvm`: `Apache-2.0`.
 - Git submodules retain their upstream licenses and copyright notices.
 
-The corresponding full license texts are stored in this directory before the
-first public release.
-
+The corresponding full license texts are stored in this directory. The root
+`LICENSE` is the GPL-3.0-only text used for repository files without a more
+specific per-component license declaration.
