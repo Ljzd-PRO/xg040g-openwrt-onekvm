@@ -165,6 +165,16 @@ fi
 docker run "${docker_args[@]}" "$builder_image" bash -lc '
 	set -euo pipefail
 
+	for safe_dir in \
+		/project \
+		/project/upstream/openwrt \
+		/project/upstream/one-kvm \
+		/project/.git/modules/upstream/openwrt \
+		/project/.git/modules/upstream/one-kvm
+	do
+		git config --global --add safe.directory "$safe_dir"
+	done
+
 	openwrt_commit="$(grep "^openwrt|" /project/locks/sources.lock | cut -d"|" -f4)"
 	one_kvm_commit="$(grep "^one-kvm|" /project/locks/sources.lock | cut -d"|" -f4 || true)"
 
