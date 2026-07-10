@@ -47,6 +47,7 @@ trap 'rm -rf "$tmp"' EXIT
 git -C upstream/one-kvm archive HEAD | tar -x -C "$tmp"
 for patch_file in package/one-kvm/patches/*.patch; do
 	patch -d "$tmp" -p1 --dry-run < "$patch_file" >/dev/null
+	patch -d "$tmp" -p1 < "$patch_file" >/dev/null
 done
 
 [[ "$(grep -c '^src-git ' locks/feeds.conf)" == "5" ]]
@@ -55,6 +56,8 @@ grep -Eq '^CONFIG_PACKAGE_one-kvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_luci-app-one-kvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-kvm-support=y$' configs/onekvm.config
 grep -Eq '^PKG_LICENSE:=GPL-3.0-only$' package/one-kvm/Makefile
+grep -Eq '^PKG_HASH:=74b90415bbd17803aa8d9a06b6f2c0ee91bdfe4407931c6c4cac037575e0a41f$' package/one-kvm/Makefile
+test -s package/one-kvm/files/Cargo.lock
 
 if command -v shellcheck >/dev/null 2>&1; then
 	shellcheck scripts/*.sh
@@ -77,4 +80,3 @@ if command -v docker >/dev/null 2>&1; then
 fi
 
 echo "Repository validation passed"
-

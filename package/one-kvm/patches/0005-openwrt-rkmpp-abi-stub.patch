@@ -1,0 +1,59 @@
+--- a/libs/hwcodec/build.rs
++++ b/libs/hwcodec/build.rs
+@@ -685,9 +685,10 @@ mod ffmpeg {
+                 }
+             }
+             builder.file(ffmpeg_hw_dir.join("ffmpeg_hw_mjpeg_h26x.cpp"));
+         } else {
++            builder.file(ffmpeg_hw_dir.join("ffmpeg_hw_mjpeg_h26x_stub.cpp"));
+             println!(
+                 "cargo:info=Skipping ffmpeg_hw_mjpeg_h26x.cpp (RKMPP) for arch {}",
+                 target_arch
+             );
+         }
+--- /dev/null
++++ b/libs/hwcodec/cpp/ffmpeg_hw/ffmpeg_hw_mjpeg_h26x_stub.cpp
+@@ -0,0 +1,43 @@
++#include "ffmpeg_hw_ffi.h"
++
++#include <cstdlib>
++
++namespace {
++constexpr const char *kDisabledError =
++    "RKMPP MJPEG-to-H26x pipeline is disabled in this OpenWrt build";
++}
++
++extern "C" FfmpegHwMjpegH26x *ffmpeg_hw_mjpeg_h26x_new(
++    const char *, const char *, int, int, int, int, int, int) {
++  return nullptr;
++}
++
++extern "C" int ffmpeg_hw_mjpeg_h26x_encode(FfmpegHwMjpegH26x *,
++                                              const uint8_t *, int, int64_t,
++                                              uint8_t **out_data, int *out_len,
++                                              int *out_keyframe) {
++  if (out_data) *out_data = nullptr;
++  if (out_len) *out_len = 0;
++  if (out_keyframe) *out_keyframe = 0;
++  return -1;
++}
++
++extern "C" int ffmpeg_hw_mjpeg_h26x_reconfigure(FfmpegHwMjpegH26x *, int,
++                                                   int) {
++  return -1;
++}
++
++extern "C" int
++ffmpeg_hw_mjpeg_h26x_request_keyframe(FfmpegHwMjpegH26x *) {
++  return -1;
++}
++
++extern "C" void ffmpeg_hw_mjpeg_h26x_free(FfmpegHwMjpegH26x *) {}
++
++extern "C" void ffmpeg_hw_packet_free(uint8_t *data) {
++  std::free(data);
++}
++
++extern "C" const char *ffmpeg_hw_last_error(void) {
++  return kDisabledError;
++}

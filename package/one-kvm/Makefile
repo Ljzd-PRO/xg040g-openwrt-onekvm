@@ -2,12 +2,13 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=one-kvm
 PKG_VERSION:=0.2.3
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=https://codeload.github.com/mofeng-git/One-KVM/tar.gz/v260626?
-PKG_HASH:=a194e3fdc720f967d19983cba00d06b5b0680cc8eec732b960fb72e37475b650
-PKG_BUILD_DIR:=$(BUILD_DIR)/One-KVM-260626
+PKG_SOURCE_URL:=
+PKG_HASH:=74b90415bbd17803aa8d9a06b6f2c0ee91bdfe4407931c6c4cac037575e0a41f
+PKG_SOURCE_SUBDIR:=One-KVM-260626
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_SOURCE_SUBDIR)
 
 PKG_MAINTAINER:=XG-040G-MD OpenWrt One-KVM contributors
 PKG_LICENSE:=GPL-3.0-only
@@ -23,7 +24,9 @@ export PKG_CONFIG_PATH:=$(STAGING_DIR)/usr/lib/pkgconfig:$(STAGING_DIR)/usr/shar
 export LIBCLANG_PATH:=/usr/lib/llvm-18/lib
 export BINDGEN_EXTRA_CLANG_ARGS:=--target=aarch64-openwrt-linux-musl --sysroot=$(TOOLCHAIN_DIR) -isystem$(TOOLCHAIN_DIR)/include -isystem$(STAGING_DIR)/usr/include
 export ONE_KVM_LIBYUV_STUB:=1
+export ONE_KVM_DISABLE_RKMPP:=1
 export CARGO_NET_RETRY:=10
+export CARGO_HTTP_TIMEOUT:=600
 export CARGO_HTTP_MULTIPLEXING:=false
 export CXX:=$(TARGET_CXX_NOCACHE)
 
@@ -43,6 +46,11 @@ endef
 
 define Package/one-kvm/conffiles
 /etc/config/one-kvm
+endef
+
+define Build/Prepare
+	$(call Build/Prepare/Default)
+	$(CP) ./files/Cargo.lock $(PKG_BUILD_DIR)/Cargo.lock
 endef
 
 define Build/Compile

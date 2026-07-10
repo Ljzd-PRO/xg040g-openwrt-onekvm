@@ -1,0 +1,48 @@
+--- a/libs/hwcodec/build.rs
++++ b/libs/hwcodec/build.rs
+@@ -7,5 +7,6 @@ fn main() {
+ fn main() {
+     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
++    println!("cargo:rerun-if-env-changed=ONE_KVM_DISABLE_RKMPP");
+     let cpp_dir = manifest_dir.join("cpp");
+     println!("cargo:rerun-if-changed=src");
+     println!("cargo:rerun-if-changed={}", cpp_dir.display());
+@@ -14,6 +15,16 @@ fn main() {
+     build_common(&mut builder);
+     ffmpeg::build_ffmpeg(&mut builder);
+     builder.static_crt(true).compile("hwcodec");
+ }
++
++fn rkmpp_enabled(target_os: &str, target_arch: &str) -> bool {
++    let disabled = env::var("ONE_KVM_DISABLE_RKMPP")
++        .map(|value| value.trim() == "1")
++        .unwrap_or(false);
++
++    !disabled
++        && ((target_os != "android" && matches!(target_arch, "aarch64" | "arm"))
++            || env::var_os("CARGO_FEATURE_RKMPP").is_some())
++}
+ 
+ fn build_common(builder: &mut Build) {
+@@ -590,9 +601,7 @@ mod ffmpeg {
+         // Avoid compiling this file on x86/x64 where `AV_HWDEVICE_TYPE_RKMPP` doesn't exist.
+         let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+         let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+-        let enable_rkmpp = target_os != "android"
+-            && matches!(target_arch.as_str(), "aarch64" | "arm")
+-            || std::env::var_os("CARGO_FEATURE_RKMPP").is_some();
++        let enable_rkmpp = rkmpp_enabled(&target_os, &target_arch);
+         if enable_rkmpp {
+             builder.file(ffmpeg_ram_dir.join("ffmpeg_ram_decode.cpp"));
+         } else {
+@@ -648,9 +657,7 @@ mod ffmpeg {
+ 
+         let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+         let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+-        let enable_rkmpp = target_os != "android"
+-            && matches!(target_arch.as_str(), "aarch64" | "arm")
+-            || std::env::var_os("CARGO_FEATURE_RKMPP").is_some();
++        let enable_rkmpp = rkmpp_enabled(&target_os, &target_arch);
+         if enable_rkmpp {
+             // Include RGA headers for NV16->NV12 conversion (RGA im2d API)
+             let rga_sys_dirs = [

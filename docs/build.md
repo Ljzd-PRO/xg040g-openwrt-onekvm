@@ -44,14 +44,25 @@ cd xg040g-openwrt-onekvm
 
 正式构建不得使用 `--incremental` 或 `--allow-dirty`。
 
+构建日志默认使用 OpenWrt 的 `V=s`。排查编译或链接问题时可以临时增加
+详细程度，例如：
+
+```bash
+BUILD_VERBOSITY=sc ./scripts/build.sh onekvm --jobs 1 --incremental
+```
+
+允许值为 `s`、`sc` 和 `c`；正式发布无需设置该环境变量。
+
 ## One-KVM 本地源码
 
-One-KVM 包仍保留 codeload tarball 和 SHA256 后备路径。仓库构建时，脚本会
-从 `upstream/one-kvm` 建立 `openwrt/git-src/one-kvm` 本地 checkout，触发
-OpenWrt 的 Git source override，再在 disposable build tree 中应用补丁。
+仓库构建时，脚本从固定的 `upstream/one-kvm` gitlink 生成确定性的
+`one-kvm-0.2.3.tar.gz`，写入 `.cache/dl`，并由包 Makefile 校验 SHA256。
+OpenWrt 随后走标准 unpack/patch 流程，因此 submodule 本身不会被修改，全部
+兼容补丁也会真实应用到 disposable build tree。
 
-没有直接把 `PKG_BUILD_DIR` 软链到 submodule，因为 quilt/patch 阶段可能
-修改源目录。
+包中还带有从该固定 commit 与补丁集生成的 `Cargo.lock`。Rust 构建使用
+`--locked`，避免 crates.io 的兼容版本在未来漂移。没有把 `PKG_BUILD_DIR`
+软链到 submodule，因为 quilt/patch 阶段必须修改临时源码。
 
 ## 缓存与产物
 
@@ -72,5 +83,5 @@ git -C upstream/openwrt checkout --detach NEW_COMMIT
 ```
 
 随后同步修改 `locks/sources.lock`，完成两套配置构建和实机验证，再提交
-gitlink 与锁文件。One-KVM 更新还必须重新验证三组 patch。
-
+gitlink 与锁文件。One-KVM 更新还必须重新生成源码归档 SHA256、`Cargo.lock`
+并验证全部 patch。

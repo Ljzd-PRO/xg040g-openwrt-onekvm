@@ -16,6 +16,7 @@ out_dir=""
 incremental=0
 offline=0
 allow_dirty=0
+build_verbosity="${BUILD_VERBOSITY:-s}"
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -69,6 +70,14 @@ case "$source_mode" in
 	isolated|direct) ;;
 	*)
 		echo "Source mode must be isolated or direct" >&2
+		exit 64
+		;;
+esac
+
+case "$build_verbosity" in
+	s|sc|c) ;;
+	*)
+		echo "BUILD_VERBOSITY must be s, sc, or c" >&2
 		exit 64
 		;;
 esac
@@ -129,6 +138,7 @@ docker_args=(
 	-e "SOURCE_MODE=$source_mode"
 	-e "INCREMENTAL=$incremental"
 	-e "WITH_LOCAL_PACKAGES=$with_local_packages"
+	-e "BUILD_VERBOSITY=$build_verbosity"
 	-e "CONFIG_FILE=/project/${config_file#"$repo_root/"}"
 	-e FORCE_UNSAFE_CONFIGURE=1
 	-v "$repo_root:/project:ro"
@@ -177,7 +187,7 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 
 	cleanup_direct() {
 		if [[ "$SOURCE_MODE" == "direct" ]]; then
-			rm -rf package/xg040g-local git-src/one-kvm feeds.conf
+			rm -rf package/xg040g-local feeds.conf
 		fi
 	}
 	trap cleanup_direct EXIT
@@ -203,10 +213,16 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 		find package/xg040g-local -type f -path "*/files/usr/sbin/*" -exec chmod 0755 {} +
 
 		test -n "$one_kvm_commit"
-		rm -rf git-src/one-kvm
-		mkdir -p git-src
-		git clone --no-checkout --no-hardlinks /project/upstream/one-kvm git-src/one-kvm
-		git -C git-src/one-kvm checkout --detach "$one_kvm_commit"
+		one_kvm_version="$(sed -n "s/^PKG_VERSION:=//p" /project/package/one-kvm/Makefile)"
+		one_kvm_subdir="$(sed -n "s/^PKG_SOURCE_SUBDIR:=//p" /project/package/one-kvm/Makefile)"
+		test -n "$one_kvm_version"
+		test -n "$one_kvm_subdir"
+		one_kvm_archive="/dl/one-kvm-${one_kvm_version}.tar.gz"
+		one_kvm_archive_tmp="${one_kvm_archive}.tmp.$$"
+		git -C /project/upstream/one-kvm archive \
+			--format=tar --prefix="${one_kvm_subdir}/" "$one_kvm_commit" \
+			| gzip -n -9 > "$one_kvm_archive_tmp"
+		mv "$one_kvm_archive_tmp" "$one_kvm_archive"
 	fi
 
 	cp "$CONFIG_FILE" .config
@@ -215,7 +231,7 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 	git rev-parse HEAD > /out/source-commit.txt
 
 	make download -j"$JOBS"
-	/usr/bin/time -v make -j"$JOBS" V=sc 2>&1 | tee /out/build.log
+	/usr/bin/time -v make -j"$JOBS" "V=$BUILD_VERBOSITY" 2>&1 | tee /out/build.log
 
 	target_dir="bin/targets/airoha/an7581"
 	prefix="openwrt-airoha-an7581-nokia_xg-040g-md-tcboot"

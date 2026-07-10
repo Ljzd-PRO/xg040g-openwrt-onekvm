@@ -83,8 +83,8 @@ RUN case "$TARGETARCH" in \
   && chmod +x /tmp/rustup-init \
   && /tmp/rustup-init -y --profile minimal --default-toolchain "$RUST_VERSION" \
   && /usr/local/cargo/bin/rustup target add aarch64-unknown-linux-musl \
+  && /usr/local/cargo/bin/rustup component add rustfmt \
   && rm /tmp/rustup-init
 
 ENV PATH="/usr/local/go/bin:/usr/local/cargo/bin:${PATH}"
 WORKDIR /work
-
