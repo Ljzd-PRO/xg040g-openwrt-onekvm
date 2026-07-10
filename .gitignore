@@ -1,0 +1,39 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Local build state and generated firmware.
+.cache/
+build/
+dist/
+dl/
+output/
+work/
+*.apk
+*.bin
+*.img
+*.itb
+*.iso
+*.tar.zst
+*.log
+
+# Device/session material must never enter the public repository.
+backups/
+downloads/
+repos/
+session-pages/
+tmp-web/
+cookies*.txt
+*.body
+*.headers
+*.raw
+*.pem
+*.key
+rclone.conf
+tcboot.bin
+
+# Generated source overrides inside an OpenWrt checkout.
+upstream/openwrt/git-src/
+upstream/openwrt/package/xg040g-local/
+

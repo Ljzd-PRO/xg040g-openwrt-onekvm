@@ -1,0 +1,18 @@
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.patch text eol=lf
+*.config text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.uc text eol=lf
+*.js text eol=lf
+*.po text eol=lf
+
+*.bin binary
+*.img binary
+*.itb binary
+*.zst binary
+
