@@ -13,7 +13,7 @@ rclone/WebDAV 缓存提供。AN7581 UDC/OTG 不在受支持功能中。
 | --- | --- |
 | tcboot OpenWrt、LuCI、SSH | 已验证 |
 | 两个 xHCI 控制器、四个 USB root hub | 已验证 |
-| 原生 One-KVM 0.2.3 与 LuCI 包 | 固件构建验证中，实机安装待验证 |
+| 原生 One-KVM 0.2.3、完整运行时与 LuCI 包 | 固件构建和实机验证中 |
 | MTU3/UDC gadget endpoint | 不支持，实验结果为零 endpoint |
 | MS2109 视频采集 | 等待硬件验证 |
 | CH9329 键鼠控制 | 等待硬件验证 |
@@ -25,9 +25,12 @@ rclone/WebDAV 缓存提供。AN7581 UDC/OTG 不在受支持功能中。
 
 - `minimal`：LuCI、SSH、USB3、UBI 与 U-Boot 环境工具，适合首次验证和恢复。
 - `onekvm`：在 minimal 基础上加入 One-KVM、LuCI 管理、UVC、CH9329、
-  USB3 存储、PXE/iPXE、rclone/WebDAV 支持。
+  USB3 存储、PXE/iPXE、rclone/WebDAV，以及 ttyd、GOSTC、EasyTier、FRPC、
+  USB 音频、四种软件编码器和 ATX 后端依赖。
 
 两种配置均为 host-only，不包含 `kmod-usb-mtu3` 或 USB gadget 包。
+AN7581 没有可用的硬件视频编码路径；完整版只提供 H.264、H.265、VP8、VP9
+软件编码，实际实时分辨率和帧率受约 320 MiB 内存及 Cortex-A53 CPU 限制。
 
 ## 快速构建
 
@@ -89,6 +92,15 @@ uci commit one-kvm
 ```
 
 LuCI 入口为“服务 -> One-KVM”。
+
+One-KVM 自带升级功能保持上游原样。LuCI 会同时显示运行文件、已安装 APK、
+ROM 内置 One-KVM、LuCI 和运行时 ABI 版本；若上游升级在 overlay 中留下损坏
+文件，可用“恢复固件内置程序”原子恢复 `/rom/usr/bin/one-kvm`。Release 还会
+单独提供 `one-kvm`、`luci-app-one-kvm` 和中文 i18n APK，供 LuCI 的“系统 ->
+软件包”页面本地上传。独立 APK 只保证与相同运行时 ABI 的完整版固件兼容。
+
+完整运行时范围、默认启用状态和升级边界见
+[One-KVM 运行时说明](docs/onekvm-runtime.md)。
 
 ## 上游与许可证
 

@@ -48,7 +48,12 @@
 | `package/one-kvm/patches/` | One-KVM 适配 OpenWrt/AN7581 的补丁。更新 One-KVM 时必须重新验证。 |
 | `package/one-kvm/files/` | UCI 默认配置、init 脚本、硬件检查脚本和锁定的 `Cargo.lock`。 |
 | `package/luci-app-one-kvm/` | LuCI 管理界面、rpcd ACL、ucode RPC 和中文翻译。 |
+| `package/xg040g-onekvm-runtime/` | 完整运行时元包、ABI 标记和依赖所有权检查。 |
+| `package/libffmpeg-onekvm/` | 只包含 One-KVM 所需解码/软件编码器的 FFmpeg 库与 codec check。 |
+| `package/libyuv/`、`package/libx265/` | 固定版本的本地多媒体依赖。 |
+| `package/gostc/`、`package/easytier-core/` | 固定哈希和 ELF 属性检查的 AArch64 扩展程序。 |
 | `package/xg040g-kvm-support/` | host-only KVM-lite 辅助脚本：UVC、CH9329、PXE/rclone helper 等。 |
+| `patches/*/onekvm/` | 仅完整版 profile 应用的 OpenWrt、feeds 与 LuCI 兼容补丁。 |
 
 One-KVM 包不要直接软链到 `upstream/one-kvm`。OpenWrt 的标准流程需要在临时
 build tree 中 unpack、patch 和 build，submodule 应保持只读和干净。
@@ -92,6 +97,14 @@ build tree 中 unpack、patch 和 build，submodule 应保持只读和干净。
 
 至少运行 `./scripts/validate.sh`。涉及运行态行为时，需要刷机后在 LuCI 和
 `ubus call luci.one-kvm status` 上做烟测。
+
+版本和恢复逻辑还涉及：
+
+- `package/luci-app-one-kvm/root/usr/sbin/one-kvm-restore-firmware`
+- `package/luci-app-one-kvm/root/usr/share/rpcd/ucode/one-kvm.uc`
+
+恢复测试必须验证 ROM/运行文件 SHA256、服务原状态和 overlay 状态，不能直接
+删除 `/usr/bin/one-kvm` 或修改已挂载的 `/overlay/upper`。
 
 ### 改 PXE、rclone、CH9329、ustreamer helper
 
@@ -154,8 +167,9 @@ git status -sb
 ```
 
 如果只是文档改动，通常 `./scripts/validate.sh` 足够。发布固件前必须 clean build
-目标 profile，并检查 `output/<profile>/SHA256SUMS.local`、manifest 和
-`BUILD-METADATA.json`。
+目标 profile，并检查 `output/<profile>/SHA256SUMS.local`、manifest、
+`BUILD-METADATA.json` 和 `APK-METADATA.json`。完整版还应执行一次热缓存
+`--offline` 构建，证明 Cargo/npm/feed 依赖可离线复用。
 
 ## 提交与推送
 

@@ -68,8 +68,10 @@ The workflow supports three entry points:
 - Tag push matching `v*`: build both profiles and publish a prerelease.
 
 Release assets include firmware images, manifests, build metadata, SHA256 sums
-and `source-with-submodules.tar.zst`. GitHub's generated source ZIP does not
-include submodule contents, so the tarball is the archival source package.
+and `source-with-submodules.tar.zst`. The `onekvm` profile additionally exports
+standalone `one-kvm`, LuCI and Chinese i18n APKs plus APK metadata. GitHub's
+generated source ZIP does not include submodule contents, so the tarball is the
+archival source package.
 
 ## Commit splitting
 

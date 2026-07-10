@@ -8,7 +8,7 @@
 - LuCI、uhttpd、Dropbear、保留配置 sysupgrade 正常。
 - 两个 xHCI 控制器工作，系统显示四个 USB2/USB3 root hub。
 - host-only 状态下 `/sys/class/udc` 为空。
-- One-KVM 0.2.3 二进制和 `luci-app-one-kvm` 可安装并读取状态。
+- One-KVM 0.2.3 二进制和基础 `luci-app-one-kvm` 可安装并读取状态。
 - PXE 独立网络、dnsmasq TFTP 与 uhttpd HTTP 文件路径曾在原型固件验证。
 - 无 rclone 配置时 helper 能以明确错误退出，不影响本地 PXE 内容。
 
@@ -19,6 +19,13 @@
 - USB3 外置盘 `KVMSTORE` 的 5 Gbit/s 链路、自动挂载与持续读写。
 - WebDAV/rclone 实际 remote 同步。
 
+## 等待本轮固件验证
+
+- 完整运行时依赖、三个独立 APK 和 LuCI 版本表。
+- ROM 二进制应急恢复与本地未受信任 APK 上传边界。
+- H.264、H.265、VP8、VP9 软件编码器单帧烟测。
+- USB Audio/ALSA 模块加载和无采集卡 One-KVM 内存占用。
+
 ## 不支持
 
 - AN7581 USB gadget HID。
@@ -27,4 +34,3 @@
 
 MTU3 D0/D1 实验在两个控制器上都读到零 endpoint capability，详细补丁与
 结论保存在 `experiments/unsupported/`。
-
