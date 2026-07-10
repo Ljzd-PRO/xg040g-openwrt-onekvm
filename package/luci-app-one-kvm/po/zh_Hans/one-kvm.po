@@ -1,0 +1,43 @@
+msgid ""
+msgstr ""
+"Language: zh_Hans\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "One-KVM"
+msgstr "One-KVM"
+
+msgid "One-KVM Status"
+msgstr "One-KVM 状态"
+
+msgid "Host-only One-KVM service for UVC/MS2109 video capture and CH9329 serial HID. OTG and USB gadget mass-storage are disabled on this firmware."
+msgstr "面向 UVC/MS2109 视频采集和 CH9329 串口 HID 的 host-only One-KVM 服务。本固件禁用 OTG 和 USB gadget 虚拟存储。"
+
+msgid "Enable service"
+msgstr "启用服务"
+
+msgid "Bind address"
+msgstr "监听地址"
+
+msgid "HTTP port"
+msgstr "HTTP 端口"
+
+msgid "Data directory"
+msgstr "数据目录"
+
+msgid "Video device"
+msgstr "视频设备"
+
+msgid "HID backend"
+msgstr "HID 后端"
+
+msgid "CH9329 port"
+msgstr "CH9329 端口"
+
+msgid "CH9329 baudrate"
+msgstr "CH9329 波特率"
+
+msgid "Hybrid mouse mode"
+msgstr "混合鼠标模式"
+
+msgid "Hardware check"
+msgstr "硬件检查"

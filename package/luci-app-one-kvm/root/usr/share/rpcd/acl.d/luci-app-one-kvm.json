@@ -1,0 +1,68 @@
+{
+	"luci-app-one-kvm": {
+		"description": "Grant access to One-KVM configuration",
+		"read": {
+			"uci": [
+				"one-kvm"
+			],
+			"ubus": {
+				"luci.one-kvm": [
+					"get_status",
+					"get_version",
+					"get_hwcheck"
+				],
+				"file": [
+					"exec",
+					"stat"
+				],
+				"log": [
+					"read"
+				]
+			},
+			"file": {
+				"/usr/bin/one-kvm": [
+					"read"
+				],
+				"/usr/sbin/one-kvm-hwcheck": [
+					"exec"
+				],
+				"/dev/video*": [
+					"read"
+				],
+				"/dev/ch9329": [
+					"read"
+				]
+			}
+		},
+		"write": {
+			"uci": [
+				"one-kvm"
+			],
+			"ubus": {
+				"luci.one-kvm": [
+					"service_action"
+				]
+			},
+			"file": {
+				"/etc/init.d/one-kvm start": [
+					"exec"
+				],
+				"/etc/init.d/one-kvm stop": [
+					"exec"
+				],
+				"/etc/init.d/one-kvm restart": [
+					"exec"
+				],
+				"/etc/init.d/one-kvm reload": [
+					"exec"
+				],
+				"/etc/init.d/one-kvm enable": [
+					"exec"
+				],
+				"/etc/init.d/one-kvm disable": [
+					"exec"
+				]
+			}
+		}
+	}
+}
