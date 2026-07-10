@@ -1,0 +1,4 @@
+[submodule "upstream/openwrt"]
+	path = upstream/openwrt
+	url = https://github.com/openwrt/openwrt.git
+	shallow = true
