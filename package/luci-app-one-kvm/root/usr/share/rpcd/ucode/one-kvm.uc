@@ -22,6 +22,30 @@ function execCommand(cmd) {
 	return output ? trim(output) : null;
 }
 
+function binaryVersion(path) {
+	return fileExists(path) ? execCommand(shellquote(path) + ' --version 2>&1') : null;
+}
+
+function fileHash(path) {
+	return fileExists(path) ? execCommand('sha256sum ' + shellquote(path) + " 2>/dev/null | cut -d' ' -f1") : null;
+}
+
+function packageVersion(name) {
+	let output = execCommand('apk query --fields name,version --format json --installed ' + shellquote(name) + ' 2>/dev/null');
+	if (!output)
+		return null;
+
+	try {
+		let records = json(output);
+		if (type(records) == 'array' && length(records) > 0 && records[0].version)
+			return records[0].version;
+	} catch (e) {
+		return null;
+	}
+
+	return null;
+}
+
 function validPort(value) {
 	if (type(value) != 'string' || !match(value, /^[0-9]+$/))
 		return '8080';
@@ -57,7 +81,36 @@ const methods = {
 	get_version: {
 		call: function() {
 			return {
-				version: fileExists('/usr/bin/one-kvm') ? execCommand(shellquote('/usr/bin/one-kvm') + ' --version 2>&1') : null
+				version: binaryVersion('/usr/bin/one-kvm')
+			};
+		}
+	},
+
+	get_versions: {
+		call: function() {
+			let runtimePath = '/usr/bin/one-kvm';
+			let romPath = '/rom/usr/bin/one-kvm';
+			let runtimeExists = fileExists(runtimePath);
+			let romExists = fileExists(romPath);
+			let runtimeHash = fileHash(runtimePath);
+			let romHash = fileHash(romPath);
+			let differs = runtimeExists && romExists && runtimeHash != null && romHash != null && runtimeHash != romHash;
+			let matchesRom = runtimeExists && romExists && runtimeHash != null && romHash != null && runtimeHash == romHash;
+
+			return {
+				runtime_version: binaryVersion(runtimePath),
+				installed_version: packageVersion('one-kvm'),
+				rom_version: binaryVersion(romPath),
+				luci_version: packageVersion('luci-app-one-kvm'),
+				runtime_abi_version: packageVersion('xg040g-onekvm-runtime'),
+				runtime_sha256: runtimeHash,
+				rom_sha256: romHash,
+				runtime_exists: runtimeExists,
+				rom_exists: romExists,
+				matches_rom: matchesRom,
+				differs_from_rom: differs,
+				overlay_override: romExists && (!runtimeExists || differs),
+				recovery_available: romExists
 			};
 		}
 	},
@@ -81,6 +134,21 @@ const methods = {
 
 			let result = init_action('one-kvm', action);
 			return { success: result === 0, action: action, exit_code: result };
+		}
+	},
+
+	restore_firmware_binary: {
+		call: function() {
+			if (!fileExists('/usr/sbin/one-kvm-restore-firmware'))
+				return { success: false, error: 'Recovery helper is missing' };
+
+			let output = execCommand('/usr/sbin/one-kvm-restore-firmware 2>&1');
+			let success = output != null && match(output, /(^|\n)RESTORE_OK=1($|\n)/) != null;
+			return {
+				success: success,
+				output: output,
+				error: success ? null : 'Firmware binary restore failed'
+			};
 		}
 	}
 };

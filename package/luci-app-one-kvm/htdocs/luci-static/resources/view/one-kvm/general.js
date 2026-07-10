@@ -11,9 +11,9 @@ const callGetStatus = rpc.declare({
 	method: 'get_status'
 });
 
-const callGetVersion = rpc.declare({
+const callGetVersions = rpc.declare({
 	object: 'luci.one-kvm',
-	method: 'get_version'
+	method: 'get_versions'
 });
 
 const callGetHwcheck = rpc.declare({
@@ -25,6 +25,11 @@ const callServiceAction = rpc.declare({
 	object: 'luci.one-kvm',
 	method: 'service_action',
 	params: ['action']
+});
+
+const callRestoreFirmwareBinary = rpc.declare({
+	object: 'luci.one-kvm',
+	method: 'restore_firmware_binary'
 });
 
 function badge(ok, yes, no) {
@@ -46,8 +51,71 @@ function button(label, action, style) {
 	}, label);
 }
 
-function renderStatus(status, version, hwcheck) {
+function shortHash(value) {
+	return value ? value.substring(0, 12) : '-';
+}
+
+function codeValue(value, title) {
+	return E('code', {
+		'style': 'white-space:normal;overflow-wrap:anywhere',
+		'title': title || value || ''
+	}, value || '-');
+}
+
+function restoreFirmwareBinary() {
+	ui.showModal(_('Restore firmware binary'), [
+		E('p', {}, _('Replace the active One-KVM program with the copy built into this firmware? The service will be stopped and restarted only when it is enabled in UCI.')),
+		E('div', { 'class': 'right' }, [
+			E('button', {
+				'class': 'btn',
+				'click': function() { ui.hideModal(); }
+			}, _('Cancel')),
+			' ',
+			E('button', {
+				'class': 'btn cbi-button-negative important',
+				'click': function(ev) {
+					const target = ev.currentTarget;
+					target.disabled = true;
+					return L.resolveDefault(callRestoreFirmwareBinary(), {}).then(function(res) {
+						ui.hideModal();
+						if (!res || !res.success) {
+							ui.addNotification(null, E('p', {}, _('Firmware binary restore failed.')), 'error');
+							return;
+						}
+						ui.addTimeLimitedNotification(null, E('p', {}, _('Firmware binary restored.')), 5000, 'info');
+					});
+				}
+			}, _('Restore'))
+		])
+	]);
+}
+
+function restoreButton(versions) {
+	const attrs = {
+		'class': 'btn cbi-button cbi-button-negative',
+		'title': _('Restore the active executable from /rom/usr/bin/one-kvm'),
+		'click': function(ev) {
+			ev.preventDefault();
+			restoreFirmwareBinary();
+		}
+	};
+	if (!versions.recovery_available)
+		attrs.disabled = true;
+
+	return E('button', attrs, _('Restore firmware binary'));
+}
+
+function renderStatus(status, versions, hwcheck) {
 	const url = 'http://' + window.location.hostname + ':' + (status.http_port || '8080') + '/';
+	let overlayText;
+	if (!versions.runtime_exists)
+		overlayText = _('Active binary missing');
+	else if (!versions.rom_exists)
+		overlayText = _('Firmware copy unavailable');
+	else if (versions.matches_rom)
+		overlayText = _('Matches firmware copy');
+	else
+		overlayText = _('Overlay override active');
 
 	return E('div', { 'class': 'cbi-section', 'id': 'onekvm-status' }, [
 		E('h3', _('One-KVM Status')),
@@ -56,7 +124,14 @@ function renderStatus(status, version, hwcheck) {
 			E('tr', {}, [ E('td', {}, _('Config')), E('td', {}, badge(status.config_enabled, _('Enabled'), _('Disabled'))) ]),
 			E('tr', {}, [ E('td', {}, _('Boot')), E('td', {}, badge(status.boot_enabled, _('Enabled'), _('Disabled'))) ]),
 			E('tr', {}, [ E('td', {}, _('Binary')), E('td', {}, badge(status.binary_exists, _('Installed'), _('Missing'))) ]),
-			E('tr', {}, [ E('td', {}, _('Version')), E('td', {}, version.version || '-') ]),
+			E('tr', {}, [ E('td', {}, _('Running binary version')), E('td', {}, codeValue(versions.runtime_version)) ]),
+			E('tr', {}, [ E('td', {}, _('Installed One-KVM APK')), E('td', {}, codeValue(versions.installed_version)) ]),
+			E('tr', {}, [ E('td', {}, _('Firmware ROM version')), E('td', {}, codeValue(versions.rom_version)) ]),
+			E('tr', {}, [ E('td', {}, _('Runtime ABI package')), E('td', {}, codeValue(versions.runtime_abi_version)) ]),
+			E('tr', {}, [ E('td', {}, _('LuCI package version')), E('td', {}, codeValue(versions.luci_version)) ]),
+			E('tr', {}, [ E('td', {}, _('Overlay state')), E('td', {}, badge(versions.matches_rom, overlayText, overlayText)) ]),
+			E('tr', {}, [ E('td', {}, _('Active SHA256')), E('td', {}, codeValue(shortHash(versions.runtime_sha256), versions.runtime_sha256)) ]),
+			E('tr', {}, [ E('td', {}, _('ROM SHA256')), E('td', {}, codeValue(shortHash(versions.rom_sha256), versions.rom_sha256)) ]),
 			E('tr', {}, [ E('td', {}, _('HTTP')), E('td', {}, [
 				badge(status.listening, _('Listening'), _('Not listening')),
 				' ',
@@ -71,7 +146,8 @@ function renderStatus(status, version, hwcheck) {
 			button(_('Stop'), 'stop', 'cbi-button-reset'), ' ',
 			button(_('Restart'), 'restart', 'cbi-button-reload'), ' ',
 			button(_('Enable boot'), 'enable', 'cbi-button-apply'), ' ',
-			button(_('Disable boot'), 'disable', 'cbi-button-reset')
+			button(_('Disable boot'), 'disable', 'cbi-button-reset'), ' ',
+			restoreButton(versions)
 		])
 	]);
 }
@@ -81,7 +157,7 @@ return view.extend({
 		return Promise.all([
 			uci.load('one-kvm'),
 			L.resolveDefault(callGetStatus(), {}),
-			L.resolveDefault(callGetVersion(), {}),
+			L.resolveDefault(callGetVersions(), {}),
 			L.resolveDefault(callGetHwcheck(), {})
 		]);
 	},
@@ -89,7 +165,7 @@ return view.extend({
 	render: function(data) {
 		let m, s, o;
 		const status = data[1] || {};
-		const version = data[2] || {};
+		const versions = data[2] || {};
 		const hwcheck = data[3] || {};
 
 		m = new form.Map('one-kvm', _('One-KVM'),
@@ -167,7 +243,7 @@ return view.extend({
 		poll.add(function() {
 			return Promise.all([
 				L.resolveDefault(callGetStatus(), {}),
-				L.resolveDefault(callGetVersion(), {}),
+				L.resolveDefault(callGetVersions(), {}),
 				L.resolveDefault(callGetHwcheck(), {})
 			]).then(function(result) {
 				const el = document.getElementById('onekvm-status');
@@ -178,7 +254,7 @@ return view.extend({
 
 		return m.render().then(function(formNode) {
 			return E([], [
-				renderStatus(status, version, hwcheck),
+				renderStatus(status, versions, hwcheck),
 				formNode
 			]);
 		});

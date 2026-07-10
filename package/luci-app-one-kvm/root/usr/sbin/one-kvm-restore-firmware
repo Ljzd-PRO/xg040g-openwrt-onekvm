@@ -1,0 +1,54 @@
+#!/bin/sh
+set -eu
+
+ROM_BINARY='/rom/usr/bin/one-kvm'
+TARGET_BINARY='/usr/bin/one-kvm'
+TEMP_BINARY="/usr/bin/.one-kvm.restore.$$"
+SERVICE_ENABLED="$(uci -q get one-kvm.main.enabled || echo 0)"
+RESTORE_COMPLETE=0
+
+cleanup() {
+	rm -f "$TEMP_BINARY"
+	if [ "$RESTORE_COMPLETE" != '1' ] && [ "$SERVICE_ENABLED" = '1' ] && ! pidof one-kvm >/dev/null 2>&1; then
+		/etc/init.d/one-kvm start >/dev/null 2>&1 || true
+	fi
+}
+trap cleanup EXIT INT TERM
+
+if [ ! -x "$ROM_BINARY" ]; then
+	echo "Firmware binary is unavailable: $ROM_BINARY" >&2
+	exit 2
+fi
+
+/etc/init.d/one-kvm stop >/dev/null 2>&1 || true
+
+cp "$ROM_BINARY" "$TEMP_BINARY"
+chmod 0755 "$TEMP_BINARY"
+
+ROM_SHA256="$(sha256sum "$ROM_BINARY" | cut -d' ' -f1)"
+TEMP_SHA256="$(sha256sum "$TEMP_BINARY" | cut -d' ' -f1)"
+if [ "$ROM_SHA256" != "$TEMP_SHA256" ]; then
+	echo 'Firmware binary checksum changed during recovery' >&2
+	exit 3
+fi
+
+mv -f "$TEMP_BINARY" "$TARGET_BINARY"
+rm -f /usr/bin/one-kvm.upgrade.new
+rm -f /etc/one-kvm/updates/one-kvm-*-download
+sync
+
+if [ "$SERVICE_ENABLED" = '1' ]; then
+	/etc/init.d/one-kvm start >/dev/null 2>&1 || true
+	SERVICE_RESTARTED=1
+else
+	SERVICE_RESTARTED=0
+fi
+
+RESTORE_COMPLETE=1
+trap - EXIT INT TERM
+
+VERSION="$($TARGET_BINARY --version 2>&1 | head -n 1 || true)"
+echo 'RESTORE_OK=1'
+echo "ROM_SHA256=$ROM_SHA256"
+echo "VERSION=$VERSION"
+echo "SERVICE_RESTARTED=$SERVICE_RESTARTED"

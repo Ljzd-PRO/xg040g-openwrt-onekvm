@@ -1,0 +1,33 @@
+diff --git a/applications/luci-app-package-manager/root/usr/libexec/package-manager-call b/applications/luci-app-package-manager/root/usr/libexec/package-manager-call
+index b641483..e7b06e9 100755
+--- a/applications/luci-app-package-manager/root/usr/libexec/package-manager-call
++++ b/applications/luci-app-package-manager/root/usr/libexec/package-manager-call
+@@ -30,6 +30,7 @@ case "$action" in
+ 	install|update|upgrade|remove)
+ 		(
+ 			cmd="$ipkg_bin"
++			local_apk_option=""
+ 
+ 			# The apk package manager uses distinct commands for installing and removing packages.
+ 			if [ $ipkg_bin = "apk" ]; then
+@@ -86,9 +87,18 @@ case "$action" in
+ 				done
+ 			fi
+ 
++			if [ "$ipkg_bin" = "apk" ] && [ "$action" = "add" ] && \
++				[ "$#" -eq 1 ] && [ "$1" = "/tmp/upload.apk" ]; then
++				local_apk_option="--allow-untrusted"
++			fi
++
+ 			if flock -x 200; then
+-				pkmcmd="$cmd $action $@"
+-				$cmd $action "$@" </dev/null >/tmp/ipkg.out 2>/tmp/ipkg.err
++				pkmcmd="$cmd $action ${local_apk_option:+$local_apk_option }$*"
++				if [ -n "$local_apk_option" ]; then
++					$cmd $action "$local_apk_option" "$@" </dev/null >/tmp/ipkg.out 2>/tmp/ipkg.err
++				else
++					$cmd $action "$@" </dev/null >/tmp/ipkg.out 2>/tmp/ipkg.err
++				fi
+ 				code=$?
+ 				stdout=$(cat /tmp/ipkg.out)
+ 				stderr=$(cat /tmp/ipkg.err)

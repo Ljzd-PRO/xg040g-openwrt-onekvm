@@ -9,6 +9,7 @@
 				"luci.one-kvm": [
 					"get_status",
 					"get_version",
+					"get_versions",
 					"get_hwcheck"
 				],
 				"file": [
@@ -40,7 +41,8 @@
 			],
 			"ubus": {
 				"luci.one-kvm": [
-					"service_action"
+					"service_action",
+					"restore_firmware_binary"
 				]
 			},
 			"file": {
@@ -60,6 +62,9 @@
 					"exec"
 				],
 				"/etc/init.d/one-kvm disable": [
+					"exec"
+				],
+				"/usr/sbin/one-kvm-restore-firmware": [
 					"exec"
 				]
 			}

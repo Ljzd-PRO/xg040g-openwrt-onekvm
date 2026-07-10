@@ -41,3 +41,57 @@ msgstr "混合鼠标模式"
 
 msgid "Hardware check"
 msgstr "硬件检查"
+
+msgid "Running binary version"
+msgstr "当前运行文件版本"
+
+msgid "Installed One-KVM APK"
+msgstr "已安装 One-KVM APK"
+
+msgid "Firmware ROM version"
+msgstr "固件 ROM 内置版本"
+
+msgid "Runtime ABI package"
+msgstr "运行时 ABI 包版本"
+
+msgid "LuCI package version"
+msgstr "LuCI 包版本"
+
+msgid "Overlay state"
+msgstr "Overlay 覆盖状态"
+
+msgid "Overlay override active"
+msgstr "当前使用 Overlay 覆盖文件"
+
+msgid "Matches firmware copy"
+msgstr "与固件内置文件一致"
+
+msgid "Active binary missing"
+msgstr "当前运行文件缺失"
+
+msgid "Firmware copy unavailable"
+msgstr "固件内置副本不可用"
+
+msgid "Active SHA256"
+msgstr "当前文件 SHA256"
+
+msgid "ROM SHA256"
+msgstr "ROM 文件 SHA256"
+
+msgid "Restore firmware binary"
+msgstr "恢复固件内置程序"
+
+msgid "Restore the active executable from /rom/usr/bin/one-kvm"
+msgstr "从 /rom/usr/bin/one-kvm 恢复当前可执行文件"
+
+msgid "Replace the active One-KVM program with the copy built into this firmware? The service will be stopped and restarted only when it is enabled in UCI."
+msgstr "确定使用本固件内置副本替换当前 One-KVM 程序吗？恢复时会停止服务，仅当 UCI 中已启用服务时才重新启动。"
+
+msgid "Restore"
+msgstr "恢复"
+
+msgid "Firmware binary restored."
+msgstr "固件内置程序已恢复。"
+
+msgid "Firmware binary restore failed."
+msgstr "固件内置程序恢复失败。"
