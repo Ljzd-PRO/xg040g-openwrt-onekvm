@@ -83,9 +83,11 @@ if ! command -v docker >/dev/null 2>&1; then
 	exit 1
 fi
 
-bootstrap_args=()
-[[ "$offline" == "1" ]] && bootstrap_args+=(--offline)
-"$repo_root/scripts/bootstrap.sh" "${bootstrap_args[@]}"
+if [[ "$offline" == "1" ]]; then
+	"$repo_root/scripts/bootstrap.sh" --offline
+else
+	"$repo_root/scripts/bootstrap.sh"
+fi
 
 if [[ "$allow_dirty" != "1" ]]; then
 	while IFS='|' read -r name path _url _commit _version; do
