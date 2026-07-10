@@ -15,6 +15,10 @@ required_files=(
 	"BUILD-METADATA.json"
 )
 
+if [[ "$profile" == "onekvm" ]]; then
+	required_files+=("APK-METADATA.json")
+fi
+
 for file in "${required_files[@]}"; do
 	test -s "$out_dir/$file" || {
 		echo "Missing build output: $file" >&2
@@ -29,7 +33,15 @@ if [[ "$profile" == "onekvm" ]]; then
 	required_packages+=(
 		one-kvm
 		luci-app-one-kvm
+		luci-i18n-one-kvm-zh-cn
 		xg040g-kvm-support
+		xg040g-onekvm-runtime
+		bash
+		ttyd
+		gostc
+		easytier-core
+		frpc
+		kmod-tun
 		kmod-video-uvc
 		v4l-utils
 		ustreamer
@@ -44,6 +56,24 @@ if [[ "$profile" == "onekvm" ]]; then
 		rclone-config
 		fuse3-utils
 		ca-bundle
+		kmod-sound-core
+		kmod-usb-audio
+		alsa-lib
+		alsa-utils
+		libopus
+		libyuv
+		libx264
+		libx265
+		libvpx
+		libffmpeg-onekvm
+		gpiod-tools
+		kmod-hid
+		kmod-hid-generic
+		kmod-usb-hid
+		kmod-usb-acm
+		kmod-usb-serial-cp210x
+		kmod-usb-serial-ftdi
+		kmod-usb-serial-pl2303
 	)
 fi
 
@@ -63,7 +93,15 @@ if [[ "$profile" == "minimal" ]]; then
 	done
 fi
 
-for package in kmod-usb-mtu3 kmod-usb-gadget kmod-usb-gadget-hid kmod-usb-gadget-mass-storage; do
+for package in \
+	kmod-usb-mtu3 \
+	kmod-usb-gadget \
+	kmod-usb-gadget-hid \
+	kmod-usb-gadget-mass-storage \
+	usbgadget \
+	libffmpeg-mini \
+	libffmpeg-full
+do
 	if grep -q "^${package} - " "$manifest"; then
 		echo "Forbidden host-only package present: $package" >&2
 		exit 1
@@ -71,9 +109,30 @@ for package in kmod-usb-mtu3 kmod-usb-gadget kmod-usb-gadget-hid kmod-usb-gadget
 done
 
 sysupgrade_size="$(wc -c < "$out_dir/$prefix-squashfs-sysupgrade.bin" | tr -d " ")"
-if [[ "$sysupgrade_size" -gt 267386880 ]]; then
-	echo "Sysupgrade image exceeds the tcboot image limit: $sysupgrade_size bytes" >&2
+if [[ "$profile" == "onekvm" && "$sysupgrade_size" -gt 83886080 ]]; then
+	echo "One-KVM sysupgrade image exceeds the 80 MiB release gate: $sysupgrade_size bytes" >&2
 	exit 1
+fi
+
+if [[ "$profile" == "onekvm" ]]; then
+	for package in one-kvm luci-app-one-kvm luci-i18n-one-kvm-zh-cn; do
+		mapfile -t apks < <(find "$out_dir/apk" -maxdepth 1 -type f -name "${package}-*.apk" -print)
+		if [[ "${#apks[@]}" -ne 1 ]]; then
+			echo "Expected exactly one exported APK for $package, found ${#apks[@]}." >&2
+			exit 1
+		fi
+		jq -e --arg package "$package" '.packages[] | select(.name == $package)' \
+			"$out_dir/APK-METADATA.json" >/dev/null
+	done
+
+	for symbol in kmod-usb-mtu3 kmod-usb-gadget kmod-usb-gadget-hid kmod-usb-gadget-mass-storage; do
+		if grep -q "^CONFIG_PACKAGE_${symbol}=y$" "$out_dir/config.buildinfo"; then
+			echo "Forbidden host-only config symbol enabled: CONFIG_PACKAGE_${symbol}" >&2
+			exit 1
+		fi
+	done
+	grep -q '^CONFIG_PACKAGE_libffmpeg-onekvm=y$' "$out_dir/config.buildinfo"
+	grep -q '^CONFIG_PACKAGE_xg040g-onekvm-runtime=y$' "$out_dir/config.buildinfo"
 fi
 
 echo "Output verification passed for $profile"

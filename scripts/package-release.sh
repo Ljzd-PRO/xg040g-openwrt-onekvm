@@ -16,6 +16,17 @@ cp "$build_dir/$prefix-initramfs-uImage.itb" "$release_dir/$asset_prefix-initram
 cp "$build_dir/$prefix.manifest" "$release_dir/$asset_prefix.manifest"
 cp "$build_dir/BUILD-METADATA.json" "$release_dir/$asset_prefix-build-metadata.json"
 
+if [[ "$profile" == "onekvm" ]]; then
+	test -s "$build_dir/APK-METADATA.json"
+	cp "$build_dir/APK-METADATA.json" "$release_dir/$asset_prefix-apk-metadata.json"
+	mapfile -t apk_files < <(find "$build_dir/apk" -maxdepth 1 -type f -name '*.apk' -print | sort)
+	if [[ "${#apk_files[@]}" -ne 3 ]]; then
+		echo "Expected three standalone One-KVM APK assets, found ${#apk_files[@]}." >&2
+		exit 1
+	fi
+	cp "${apk_files[@]}" "$release_dir/"
+fi
+
 for name in config.buildinfo feeds.buildinfo version.buildinfo profiles.json; do
 	if [[ -s "$build_dir/$name" ]]; then
 		cp "$build_dir/$name" "$release_dir/$asset_prefix-$name"

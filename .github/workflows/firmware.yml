@@ -114,6 +114,12 @@ jobs:
         with:
           subject-path: release/${{ matrix.profile }}/*.{bin,itb}
 
+      - name: Attest standalone One-KVM APKs
+        if: matrix.profile == 'onekvm'
+        uses: actions/attest@f6bf1532d7d6793fce74eac584813a8eee607999 # v4
+        with:
+          subject-path: release/${{ matrix.profile }}/*.apk
+
       - name: Attest source bundle
         if: matrix.profile == 'onekvm'
         uses: actions/attest@f6bf1532d7d6793fce74eac584813a8eee607999 # v4
@@ -167,6 +173,8 @@ jobs:
           find . -type f ! -name SHA256SUMS -exec sha256sum {} \; | sort -k2 > SHA256SUMS
           printf '%s\n' \
             'Automated XG-040G-MD OpenWrt build.' \
+            '' \
+            'The One-KVM profile includes standalone one-kvm, LuCI, and zh-cn APK upgrade assets.' \
             '' \
             'This remains a prerelease until MS2109 and CH9329 hardware validation is complete.' \
             > release-notes.md

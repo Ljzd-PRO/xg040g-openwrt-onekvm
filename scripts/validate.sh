@@ -38,32 +38,78 @@ fi
 bash -n scripts/*.sh
 while IFS= read -r script; do
 	sh -n "$script"
-done < <(git ls-files 'package/*/files/*' | xargs grep -l '^#!/bin/sh' 2>/dev/null || true)
+done < <(find package -type f -print0 | xargs -0 grep -l '^#!/bin/sh' 2>/dev/null || true)
 
 node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/general.js
+jq empty package/luci-app-one-kvm/root/usr/share/luci/menu.d/luci-app-one-kvm.json
+jq empty package/luci-app-one-kvm/root/usr/share/rpcd/acl.d/luci-app-one-kvm.json
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-git -C upstream/one-kvm archive HEAD | tar -x -C "$tmp"
+mkdir -p "$tmp/one-kvm" "$tmp/openwrt" "$tmp/packages" "$tmp/luci"
+git -C upstream/one-kvm archive HEAD | tar -x -C "$tmp/one-kvm"
+git -C "$tmp/one-kvm" init -q
 for patch_file in package/one-kvm/patches/*.patch; do
-	patch -d "$tmp" -p1 --dry-run < "$patch_file" >/dev/null
-	patch -d "$tmp" -p1 < "$patch_file" >/dev/null
+	git -C "$tmp/one-kvm" apply --check "$repo_root/$patch_file"
+	git -C "$tmp/one-kvm" apply "$repo_root/$patch_file"
 done
+
+git -C upstream/openwrt archive HEAD package/kernel/linux/modules/sound.mk | tar -x -C "$tmp/openwrt"
+git -C "$tmp/openwrt" init -q
+for patch_file in patches/openwrt/onekvm/*.patch; do
+	git -C "$tmp/openwrt" apply --check "$repo_root/$patch_file"
+	git -C "$tmp/openwrt" apply "$repo_root/$patch_file"
+done
+
+packages_commit="$(awk '$1 == "src-git" && $2 == "packages" { split($3, parts, "\\^"); print parts[2] }' locks/feeds.conf)"
+luci_commit="$(awk '$1 == "src-git" && $2 == "luci" { split($3, parts, "\\^"); print parts[2] }' locks/feeds.conf)"
+git --git-dir=.cache/feeds/packages.git archive "$packages_commit" libs/libx264 net/frp utils/ttyd | tar -x -C "$tmp/packages"
+git -C "$tmp/packages" init -q
+for patch_file in patches/packages/onekvm/*.patch; do
+	git -C "$tmp/packages" apply --check "$repo_root/$patch_file"
+	git -C "$tmp/packages" apply "$repo_root/$patch_file"
+done
+git --git-dir=.cache/feeds/luci.git archive "$luci_commit" applications/luci-app-package-manager | tar -x -C "$tmp/luci"
+git -C "$tmp/luci" init -q
+for patch_file in patches/luci/onekvm/*.patch; do
+	git -C "$tmp/luci" apply --check "$repo_root/$patch_file"
+	git -C "$tmp/luci" apply "$repo_root/$patch_file"
+done
+sh -n "$tmp/luci/applications/luci-app-package-manager/root/usr/libexec/package-manager-call"
 
 [[ "$(grep -c '^src-git ' locks/feeds.conf)" == "5" ]]
 grep -Eq '^CONFIG_TARGET_airoha_an7581_DEVICE_nokia_xg-040g-md-tcboot=y$' configs/minimal.config
 grep -Eq '^CONFIG_PACKAGE_one-kvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_luci-app-one-kvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-kvm-support=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_xg040g-onekvm-runtime=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_libffmpeg-onekvm=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_kmod-usb-audio=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_ttyd=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_gostc=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_easytier-core=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_frpc=y$' configs/onekvm.config
+grep -Eq '^CONFIG_BUILD_PATENTED=y$' configs/onekvm.config
+grep -Eq '^# CONFIG_PACKAGE_libffmpeg-mini is not set$' configs/onekvm.config
 grep -Eq '^PKG_LICENSE:=GPL-3.0-only$' package/one-kvm/Makefile
 grep -Eq '^PKG_HASH:=74b90415bbd17803aa8d9a06b6f2c0ee91bdfe4407931c6c4cac037575e0a41f$' package/one-kvm/Makefile
+grep -Eq '^  DEPENDS:.*\+xg040g-onekvm-runtime' package/one-kvm/Makefile
+grep -Eq '^PKG_HASH:=2a100487a4f3ccd27ad82132c4f8e6ac253c9696428f0d3fd4c53170e1c3682e$' package/gostc/Makefile
+grep -Eq '^PKG_HASH:=df08c842f2ab2b8e9922f13c686a1d0f5a5219775cfdabb3e4a8599c6772201f$' package/easytier-core/Makefile
+grep -Eq '^GOSTC_BINARY_HASH:=5d8ab3176d096a899604377f9a1f9b15a64b537fd4d3698dac4d49001960d4b6$' package/gostc/Makefile
+grep -Eq '^EASYTIER_BINARY_HASH:=88fd4f8ec30b0766251578cdc82631eddc3710d6dd913547224a4afc34693d36$' package/easytier-core/Makefile
+grep -q 'LicenseRef-GOSTC-Commons-Clause' package/gostc/Makefile
+test -s package/easytier-core/files/COPYING
+test ! -e package/one-kvm/patches/0002-openwrt-disable-audio.patch
+test ! -e package/one-kvm/patches/0003-openwrt-ffmpeg-yuv-fallbacks.patch
 test -s package/one-kvm/files/Cargo.lock
 
 if command -v shellcheck >/dev/null 2>&1; then
 	shellcheck scripts/*.sh
 	while IFS= read -r script; do
 		shellcheck -s sh "$script"
-	done < <(git ls-files 'package/*/files/*' | xargs grep -l '^#!/bin/sh' 2>/dev/null || true)
+	done < <(find package -type f -print0 | xargs -0 grep -l '^#!/bin/sh' 2>/dev/null || true)
+	shellcheck -s sh "$tmp/luci/applications/luci-app-package-manager/root/usr/libexec/package-manager-call"
 fi
 
 if command -v actionlint >/dev/null 2>&1; then

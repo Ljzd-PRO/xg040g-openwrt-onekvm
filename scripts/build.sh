@@ -74,6 +74,11 @@ case "$source_mode" in
 		;;
 esac
 
+if [[ "$profile" == "onekvm" && "$source_mode" == "direct" ]]; then
+	echo "The onekvm profile applies isolated source/feed patches and requires --source-mode isolated." >&2
+	exit 1
+fi
+
 case "$build_verbosity" in
 	s|sc|c) ;;
 	*)
@@ -122,13 +127,34 @@ case "$(uname -m)" in
 	*) echo "Unsupported host architecture: $(uname -m)" >&2; exit 1 ;;
 esac
 
+docker_host_path() {
+	case "$(uname -s)" in
+		MINGW*|MSYS*|CYGWIN*) cygpath -aw "$1" ;;
+		*) printf '%s\n' "$1" ;;
+	esac
+}
+
+case "$(uname -s)" in
+	MINGW*|MSYS*|CYGWIN*) export MSYS2_ARG_CONV_EXCL='*' ;;
+esac
+
 timestamp="$(date +%Y%m%d-%H%M%S)"
 out_dir="${out_dir:-$repo_root/output/$profile-$timestamp}"
-mkdir -p "$out_dir" "$repo_root/.cache/dl" "$repo_root/.cache/feeds"
+mkdir -p "$out_dir" "$repo_root/.cache/dl" "$repo_root/.cache/dl/npm" "$repo_root/.cache/feeds"
 out_dir="$(cd "$out_dir" && pwd)"
 
 builder_image="${BUILDER_IMAGE:-xg040g-openwrt-builder:ubuntu24.04-$arch_tag}"
-docker build --platform "$platform" -t "$builder_image" -f "$repo_root/docker/Dockerfile" "$repo_root/docker"
+if [[ "${SKIP_BUILDER_BUILD:-0}" == "1" ]]; then
+	if ! docker image inspect "$builder_image" >/dev/null 2>&1; then
+		echo "SKIP_BUILDER_BUILD=1 requested, but image is missing: $builder_image" >&2
+		exit 1
+	fi
+	echo "Reusing existing builder image: $builder_image"
+else
+	docker build --platform "$platform" -t "$builder_image" \
+		-f "$(docker_host_path "$repo_root/docker/Dockerfile")" \
+		"$(docker_host_path "$repo_root/docker")"
+fi
 
 docker_args=(
 	--rm
@@ -142,24 +168,24 @@ docker_args=(
 	-e "BUILD_VERBOSITY=$build_verbosity"
 	-e "CONFIG_FILE=/project/${config_file#"$repo_root/"}"
 	-e FORCE_UNSAFE_CONFIGURE=1
-	-v "$repo_root:/project:ro"
-	-v "$repo_root/.cache/dl:/dl"
-	-v "$repo_root/.cache/feeds:/feed-cache"
-	-v "$out_dir:/out"
+	-v "$(docker_host_path "$repo_root"):/project:ro"
+	-v "$(docker_host_path "$repo_root/.cache/dl"):/dl"
+	-v "$(docker_host_path "$repo_root/.cache/feeds"):/feed-cache"
+	-v "$(docker_host_path "$out_dir"):/out"
 )
 
 if [[ "$source_mode" == "isolated" ]]; then
 	if [[ -n "${WORK_DIR:-}" ]]; then
 		mkdir -p "$WORK_DIR"
 		work_dir="$(cd "$WORK_DIR" && pwd)"
-		docker_args+=( -v "$work_dir:/work" )
+		docker_args+=( -v "$(docker_host_path "$work_dir"):/work" )
 	else
 		work_volume="${WORK_VOLUME:-xg040g-openwrt-$profile-work}"
 		docker volume create "$work_volume" >/dev/null
 		docker_args+=( -v "$work_volume:/work" )
 	fi
 else
-	docker_args+=( -v "$repo_root/upstream/openwrt:/work/openwrt" )
+	docker_args+=( -v "$(docker_host_path "$repo_root/upstream/openwrt"):/work/openwrt" )
 fi
 
 docker run "${docker_args[@]}" "$builder_image" bash -lc '
@@ -195,6 +221,22 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 	else
 		cd /work/openwrt
 		test "$(git rev-parse HEAD)" = "$openwrt_commit"
+	fi
+
+	apply_patch_series() {
+		local tree="$1"
+		local series_dir="$2"
+		local patch_file
+
+		[[ -d "$series_dir" ]] || return 0
+		while IFS= read -r patch_file; do
+			echo "Applying profile patch: ${patch_file#/project/}"
+			patch -d "$tree" -p1 --forward < "$patch_file"
+		done < <(find "$series_dir" -maxdepth 1 -type f -name "*.patch" | sort)
+	}
+
+	if [[ "$PROFILE" == "onekvm" ]]; then
+		apply_patch_series /work/openwrt /project/patches/openwrt/onekvm
 	fi
 
 	cleanup_direct() {
@@ -269,6 +311,10 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 	done < /project/locks/feeds.conf
 
 	./scripts/feeds update -a
+	if [[ "$PROFILE" == "onekvm" ]]; then
+		apply_patch_series /work/openwrt/feeds/packages /project/patches/packages/onekvm
+		apply_patch_series /work/openwrt/feeds/luci /project/patches/luci/onekvm
+	fi
 	cp /project/locks/feeds.conf feeds.conf
 	./scripts/feeds install -a -f
 
@@ -278,6 +324,7 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 		mkdir -p package/xg040g-local
 		cp -a /project/package/. package/xg040g-local/
 		find package/xg040g-local -type f -path "*/files/etc/init.d/*" -exec chmod 0755 {} +
+		find package/xg040g-local -type f -path "*/files/etc/uci-defaults/*" -exec chmod 0755 {} +
 		find package/xg040g-local -type f -path "*/files/usr/bin/*" -exec chmod 0755 {} +
 		find package/xg040g-local -type f -path "*/files/usr/sbin/*" -exec chmod 0755 {} +
 
@@ -299,8 +346,13 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 	cp .config /out/config.after-defconfig
 	git rev-parse HEAD > /out/source-commit.txt
 
-	make download -j"$JOBS"
-	/usr/bin/time -v make -j"$JOBS" "V=$BUILD_VERBOSITY" 2>&1 | tee /out/build.log
+	make download -j"$JOBS" \
+		ONE_KVM_CARGO_OFFLINE="$OFFLINE" \
+		ONE_KVM_NPM_OFFLINE="$OFFLINE"
+	/usr/bin/time -v make -j"$JOBS" \
+		ONE_KVM_CARGO_OFFLINE="$OFFLINE" \
+		ONE_KVM_NPM_OFFLINE="$OFFLINE" \
+		"V=$BUILD_VERBOSITY" 2>&1 | tee /out/build.log
 
 	target_dir="bin/targets/airoha/an7581"
 	prefix="openwrt-airoha-an7581-nokia_xg-040g-md-tcboot"
@@ -315,7 +367,43 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 	cp -a "${manifest_files[0]}" "/out/$prefix.manifest"
 	cp -a "$target_dir"/*.buildinfo "$target_dir"/profiles.json "$target_dir"/sha256sums /out/
 
+	if [[ "$PROFILE" == "onekvm" ]]; then
+		mkdir -p /out/apk
+		apk_records="/out/apk/.records.jsonl"
+		: > "$apk_records"
+		for package_name in one-kvm luci-app-one-kvm luci-i18n-one-kvm-zh-cn; do
+			mapfile -t package_files < <(find bin/packages -type f -name "${package_name}-*.apk" -print)
+			if [[ "${#package_files[@]}" -ne 1 ]]; then
+				echo "Expected exactly one APK for $package_name, found ${#package_files[@]}." >&2
+				exit 1
+			fi
+			apk_file="${package_files[0]}"
+			apk_base="$(basename "$apk_file")"
+			cp -a "$apk_file" "/out/apk/$apk_base"
+			apk_version="${apk_base#${package_name}-}"
+			apk_version="${apk_version%.apk}"
+			apk_size="$(wc -c < "$apk_file" | tr -d " ")"
+			apk_sha256="$(sha256sum "$apk_file" | cut -d" " -f1)"
+			jq -n \
+				--arg name "$package_name" \
+				--arg version "$apk_version" \
+				--arg file "apk/$apk_base" \
+				--arg sha256 "$apk_sha256" \
+				--argjson bytes "$apk_size" \
+				"{name:\$name,version:\$version,file:\$file,bytes:\$bytes,sha256:\$sha256}" \
+				>> "$apk_records"
+		done
+		jq -s \
+			--arg runtime_abi "xg040g-onekvm-runtime-v1" \
+			"{runtime_abi:\$runtime_abi,packages:.}" \
+			"$apk_records" > /out/APK-METADATA.json
+		rm -f "$apk_records"
+	fi
+
 	project_commit="$(git -C /project rev-parse HEAD 2>/dev/null || echo source-archive)"
+	factory_bytes="$(wc -c < "/out/$prefix-squashfs-factory.bin" | tr -d " ")"
+	sysupgrade_bytes="$(wc -c < "/out/$prefix-squashfs-sysupgrade.bin" | tr -d " ")"
+	initramfs_bytes="$(wc -c < "/out/$prefix-initramfs-uImage.itb" | tr -d " ")"
 	jq -n \
 		--arg profile "$PROFILE" \
 		--arg project_commit "$project_commit" \
@@ -324,10 +412,20 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 		--arg source_mode "$SOURCE_MODE" \
 		--arg platform "$(uname -m)" \
 		--arg jobs "$JOBS" \
-		"{profile:\$profile,project_commit:\$project_commit,openwrt_commit:\$openwrt_commit,one_kvm_commit:\$one_kvm_commit,source_mode:\$source_mode,builder_arch:\$platform,jobs:(\$jobs|tonumber)}" \
+		--argjson factory_bytes "$factory_bytes" \
+		--argjson sysupgrade_bytes "$sysupgrade_bytes" \
+		--argjson initramfs_bytes "$initramfs_bytes" \
+		"{profile:\$profile,project_commit:\$project_commit,openwrt_commit:\$openwrt_commit,one_kvm_commit:\$one_kvm_commit,source_mode:\$source_mode,builder_arch:\$platform,jobs:(\$jobs|tonumber),firmware:{factory_bytes:\$factory_bytes,sysupgrade_bytes:\$sysupgrade_bytes,initramfs_bytes:\$initramfs_bytes}}" \
 		> /out/BUILD-METADATA.json
 
-	(cd /out && sha256sum "$prefix"-* "$prefix.manifest" > SHA256SUMS.local)
+	(
+		cd /out
+		checksum_files=( "$prefix"-* "$prefix.manifest" BUILD-METADATA.json )
+		if [[ "$PROFILE" == "onekvm" ]]; then
+			checksum_files+=( APK-METADATA.json apk/*.apk )
+		fi
+		sha256sum "${checksum_files[@]}" > SHA256SUMS.local
+	)
 '
 
 "$repo_root/scripts/verify-output.sh" "$profile" "$out_dir"
