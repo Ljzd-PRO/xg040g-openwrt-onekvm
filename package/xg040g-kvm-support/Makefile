@@ -32,6 +32,9 @@ define Package/xg040g-kvm-support/conffiles
 /etc/config/xg040g-kvm
 endef
 
+define Build/Compile
+endef
+
 define Package/xg040g-kvm-support/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/etc/config/xg040g-kvm $(1)/etc/config/xg040g-kvm
@@ -51,4 +54,3 @@ define Package/xg040g-kvm-support/install
 endef
 
 $(eval $(call BuildPackage,xg040g-kvm-support))
-
