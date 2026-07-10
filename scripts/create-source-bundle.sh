@@ -17,7 +17,7 @@ git -C "$repo_root" archive HEAD | tar -x -C "$tmp/$bundle_name"
 
 while IFS='|' read -r name path url commit _version; do
 	[[ -n "$name" && "$name" != \#* ]] || continue
-	rm -rf "$tmp/$bundle_name/$path"
+	rm -rf "${tmp:?}/${bundle_name:?}/$path"
 	mkdir -p "$(dirname "$tmp/$bundle_name/$path")"
 	git clone --quiet --no-hardlinks "$repo_root/$path" "$tmp/$bundle_name/$path"
 	git -C "$tmp/$bundle_name/$path" remote set-url origin "$url"
@@ -33,4 +33,3 @@ else
 fi
 
 sha256sum "$output"
-

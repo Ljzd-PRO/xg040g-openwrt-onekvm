@@ -7,7 +7,7 @@ release_dir="${3:?release directory required}"
 prefix="openwrt-airoha-an7581-nokia_xg-040g-md-tcboot"
 asset_prefix="xg040g-$profile"
 
-rm -rf "$release_dir"
+rm -rf "${release_dir:?}"
 mkdir -p "$release_dir"
 
 cp "$build_dir/$prefix-squashfs-factory.bin" "$release_dir/$asset_prefix-factory.bin"
@@ -22,8 +22,10 @@ for name in config.buildinfo feeds.buildinfo version.buildinfo profiles.json; do
 	fi
 done
 
+checksum_tmp="$(mktemp)"
+trap 'rm -f "$checksum_tmp"' EXIT
 (
 	cd "$release_dir"
-	find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+	find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$checksum_tmp"
 )
-
+mv "$checksum_tmp" "$release_dir/SHA256SUMS"
