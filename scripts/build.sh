@@ -327,6 +327,8 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 		find package/xg040g-local -type f -path "*/files/etc/uci-defaults/*" -exec chmod 0755 {} +
 		find package/xg040g-local -type f -path "*/files/usr/bin/*" -exec chmod 0755 {} +
 		find package/xg040g-local -type f -path "*/files/usr/sbin/*" -exec chmod 0755 {} +
+		find package/xg040g-local -type f -path "*/root/usr/bin/*" -exec chmod 0755 {} +
+		find package/xg040g-local -type f -path "*/root/usr/sbin/*" -exec chmod 0755 {} +
 
 		test -n "$one_kvm_commit"
 		one_kvm_version="$(sed -n "s/^PKG_VERSION:=//p" /project/package/one-kvm/Makefile)"
