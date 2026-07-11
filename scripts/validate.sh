@@ -36,9 +36,16 @@ if git grep -nE 'api[.]day[.]app/|/Users/[^/]+/|[A-Za-z]:/Users/' -- . ':(exclud
 fi
 
 bash -n scripts/*.sh
-while IFS= read -r script; do
+package_shell_scripts() {
+	while IFS= read -r -d '' script; do
+		IFS= read -r first_line < "$script" || true
+		[[ "$first_line" == '#!/bin/sh' ]] && printf '%s\0' "$script"
+	done < <(find package -type f -print0)
+}
+
+while IFS= read -r -d '' script; do
 	sh -n "$script"
-done < <(find package -type f -print0 | xargs -0 grep -l '^#!/bin/sh' 2>/dev/null || true)
+done < <(package_shell_scripts)
 
 node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/general.js
 jq empty package/luci-app-one-kvm/root/usr/share/luci/menu.d/luci-app-one-kvm.json
@@ -75,7 +82,9 @@ for patch_file in patches/luci/onekvm/*.patch; do
 	git -C "$tmp/luci" apply --check "$repo_root/$patch_file"
 	git -C "$tmp/luci" apply "$repo_root/$patch_file"
 done
-sh -n "$tmp/luci/applications/luci-app-package-manager/root/usr/libexec/package-manager-call"
+# Debian dash rejects the upstream OpenWrt script's fd 200 redirection even
+# though BusyBox ash accepts it. ShellCheck below still validates sh semantics.
+bash -n "$tmp/luci/applications/luci-app-package-manager/root/usr/libexec/package-manager-call"
 
 [[ "$(grep -c '^src-git ' locks/feeds.conf)" == "5" ]]
 grep -Eq '^CONFIG_TARGET_airoha_an7581_DEVICE_nokia_xg-040g-md-tcboot=y$' configs/minimal.config
@@ -106,10 +115,10 @@ test -s package/one-kvm/files/Cargo.lock
 
 if command -v shellcheck >/dev/null 2>&1; then
 	shellcheck scripts/*.sh
-	while IFS= read -r script; do
+	while IFS= read -r -d '' script; do
 		shellcheck -s sh "$script"
-	done < <(find package -type f -print0 | xargs -0 grep -l '^#!/bin/sh' 2>/dev/null || true)
-	shellcheck -s sh "$tmp/luci/applications/luci-app-package-manager/root/usr/libexec/package-manager-call"
+	done < <(package_shell_scripts)
+	shellcheck --severity=error -s sh "$tmp/luci/applications/luci-app-package-manager/root/usr/libexec/package-manager-call"
 fi
 
 if command -v actionlint >/dev/null 2>&1; then
