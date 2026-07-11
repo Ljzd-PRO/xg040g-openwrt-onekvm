@@ -26,7 +26,7 @@ start_service() {
 	config_get video_device main video_device "/dev/video0"
 	config_get hid_backend main hid_backend "ch9329"
 	config_get ch9329_port main ch9329_port "/dev/ch9329"
-	config_get ch9329_baudrate main ch9329_baudrate "115200"
+	config_get ch9329_baudrate main ch9329_baudrate "9600"
 	config_get_bool ch9329_hybrid_mouse main ch9329_hybrid_mouse 0
 	config_get_bool force_host_only main force_host_only 1
 

@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# One-KVM owns port 8080 and /dev/video0. Keep the feed-provided ustreamer
+# available for diagnostics, but prevent its default instance from competing.
+if uci -q get ustreamer.video0 >/dev/null; then
+	uci set ustreamer.video0.enabled='0'
+	uci commit ustreamer
+fi
+
+/etc/init.d/ustreamer disable 2>/dev/null || true
+/etc/init.d/ustreamer stop 2>/dev/null || true
+
+exit 0

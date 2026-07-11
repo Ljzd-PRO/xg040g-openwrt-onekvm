@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=xg040g-kvm-support
 PKG_VERSION:=0.1.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_MAINTAINER:=XG-040G-MD OpenWrt One-KVM contributors
 PKG_LICENSE:=GPL-3.0-only
@@ -41,6 +41,10 @@ define Package/xg040g-kvm-support/install
 
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/etc/init.d/kvm-ustreamer $(1)/etc/init.d/kvm-ustreamer
+
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/etc/uci-defaults/99-xg040g-disable-feed-ustreamer \
+		$(1)/etc/uci-defaults/99-xg040g-disable-feed-ustreamer
 
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/tty
 	$(INSTALL_BIN) ./files/etc/hotplug.d/tty/99-ch9329-link $(1)/etc/hotplug.d/tty/99-ch9329-link
