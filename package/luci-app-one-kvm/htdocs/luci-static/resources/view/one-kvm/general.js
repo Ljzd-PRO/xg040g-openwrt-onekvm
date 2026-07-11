@@ -216,7 +216,7 @@ return view.extend({
 		o.depends('hid_backend', 'ch9329');
 		o.value('9600', '9600');
 		o.value('115200', '115200');
-		o.default = '115200';
+		o.default = '9600';
 
 		o = s.option(form.Flag, 'ch9329_hybrid_mouse', _('Hybrid mouse mode'));
 		o.depends('hid_backend', 'ch9329');

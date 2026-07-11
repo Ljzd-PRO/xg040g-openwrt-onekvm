@@ -70,7 +70,7 @@ const methods = {
 				binary_exists: fileExists('/usr/bin/one-kvm'),
 				boot_enabled: init_enabled('one-kvm'),
 				http_port: port,
-				listening: listen == '1',
+				listening: pid != null && pid != '' && listen == '1',
 				video0_exists: fileExists('/dev/video0'),
 				ch9329_exists: fileExists('/dev/ch9329'),
 				host_only: udcCount == '0'
