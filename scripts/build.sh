@@ -323,6 +323,7 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 		rm -rf package/xg040g-local
 		mkdir -p package/xg040g-local
 		cp -a /project/package/. package/xg040g-local/
+		find package/xg040g-local -type f -exec chmod 0644 {} +
 		find package/xg040g-local -type f -path "*/files/etc/init.d/*" -exec chmod 0755 {} +
 		find package/xg040g-local -type f -path "*/files/etc/uci-defaults/*" -exec chmod 0755 {} +
 		find package/xg040g-local -type f -path "*/files/usr/bin/*" -exec chmod 0755 {} +
@@ -343,6 +344,62 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 		mv "$one_kvm_archive_tmp" "$one_kvm_archive"
 	fi
 
+	prefetch_npm_native() {
+		local native_package native_version lock_file attempt
+		local -a native_packages
+
+		[[ "$PROFILE" == "onekvm" ]] || return 0
+		case "$(uname -m)" in
+			x86_64|amd64)
+				native_packages=(
+					"@esbuild/linux-x64"
+					"@rollup/rollup-linux-x64-gnu"
+					"@tailwindcss/oxide-linux-x64-gnu"
+					"lightningcss-linux-x64-gnu"
+				)
+				;;
+			aarch64|arm64)
+				native_packages=(
+					"@esbuild/linux-arm64"
+					"@rollup/rollup-linux-arm64-gnu"
+					"@tailwindcss/oxide-linux-arm64-gnu"
+					"lightningcss-linux-arm64-gnu"
+				)
+				;;
+			*) echo "Unsupported npm build architecture: $(uname -m)" >&2; return 1 ;;
+		esac
+
+		lock_file="/project/upstream/one-kvm/web/package-lock.json"
+		for native_package in "${native_packages[@]}"; do
+			native_version="$(jq -r --arg path "node_modules/$native_package" \
+				".packages[\$path].version // empty" "$lock_file")"
+			[[ -n "$native_version" ]] || {
+				echo "Unable to find $native_package in the One-KVM package lock." >&2
+				return 1
+			}
+
+			if [[ "$OFFLINE" == "1" ]]; then
+				npm cache add "$native_package@$native_version" \
+					--cache /dl/npm --offline --no-audit --no-fund
+				continue
+			fi
+
+			for attempt in 1 2 3; do
+				if npm cache add "$native_package@$native_version" \
+					--cache /dl/npm --prefer-online --no-audit --no-fund; then
+					break
+				fi
+				echo "$native_package fetch attempt $attempt failed; retrying." >&2
+				sleep "$((attempt * 5))"
+			done
+			if [[ "$attempt" == "3" ]]; then
+				npm cache add "$native_package@$native_version" \
+					--cache /dl/npm --offline --no-audit --no-fund || return 1
+			fi
+		done
+	}
+
+	prefetch_npm_native
 	cp "$CONFIG_FILE" .config
 	make defconfig
 	cp .config /out/config.after-defconfig
