@@ -13,13 +13,15 @@ rclone/WebDAV 缓存提供。AN7581 UDC/OTG 不在受支持功能中。
 | --- | --- |
 | tcboot OpenWrt、LuCI、SSH | 已验证 |
 | 两个 xHCI 控制器、四个 USB root hub | 已验证 |
-| 原生 One-KVM 0.2.3、完整运行时与 LuCI 包 | 固件构建和实机验证中 |
+| 原生 One-KVM 0.2.3、完整运行时与 LuCI 包 | 已验证 |
 | MTU3/UDC gadget endpoint | 不支持，实验结果为零 endpoint |
-| MS2109 视频采集 | 等待硬件验证 |
-| CH9329 键鼠控制 | 等待硬件验证 |
-| USB3 `KVMSTORE` 外置盘 | 等待硬件验证 |
+| MS2109 视频与 USB 音频采集 | 已验证 |
+| CH340 + CH9329 键鼠控制 | 已验证，默认 9600 baud |
+| USB3 `KVMSTORE` 外置盘 | 实机验证已延期 |
 
-在后三项完成闭环前，自动发布的固件均标记为 prerelease。
+在 USB3 `KVMSTORE`、物理 PXE 客户端和真实 WebDAV remote 完成闭环前，
+自动发布的固件均标记为 prerelease。当前实测记录见
+[2026-07-12 full-profile hardware validation](docs/hardware-validation-20260712.md)。
 
 ## 固件配置
 

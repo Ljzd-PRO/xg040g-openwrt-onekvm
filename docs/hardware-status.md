@@ -1,6 +1,6 @@
 # 硬件与功能验证状态
 
-更新时间：2026-07-10。
+更新时间：2026-07-12。
 
 ## 已验证
 
@@ -8,23 +8,22 @@
 - LuCI、uhttpd、Dropbear、保留配置 sysupgrade 正常。
 - 两个 xHCI 控制器工作，系统显示四个 USB2/USB3 root hub。
 - host-only 状态下 `/sys/class/udc` 为空。
-- One-KVM 0.2.3 二进制和基础 `luci-app-one-kvm` 可安装并读取状态。
-- PXE 独立网络、dnsmasq TFTP 与 uhttpd HTTP 文件路径曾在原型固件验证。
+- One-KVM 0.2.3 完整运行时、LuCI 版本状态、默认停用和 ROM 恢复均已验证。
+- MS2109 UVC 视频、USB Audio、One-KVM MJPEG/快照/Opus 音频链路已验证。
+- CH340 + CH9329 `V3.8` 在 9600 baud 下完成键盘 LED 往返和相对鼠标测试。
+- H.264、H.265、VP8、VP9 软件编码器均完成 720p 单帧烟测。
+- PXE 独立网络、dnsmasq TFTP 与 uhttpd HTTP 文件传输已验证。
+- rclone 本地 remote fixture 已验证 dry-run、缓存刷新和断源保留行为。
 - 无 rclone 配置时 helper 能以明确错误退出，不影响本地 PXE 内容。
 
-## 等待硬件
+## 已延期或等待外部条件
 
-- MS2109 出现 `/dev/video0`、格式枚举和 One-KVM 实际视频流。
-- CH340/CH341 + CH9329 的 `/dev/ch9329`、键盘与鼠标事件。
 - USB3 外置盘 `KVMSTORE` 的 5 Gbit/s 链路、自动挂载与持续读写。
-- WebDAV/rclone 实际 remote 同步。
+- 物理 PXE 客户端的 DHCP、iPXE 执行和系统启动。
+- 真实 WebDAV/rclone remote 的鉴权和同步。
+- 实体 ATX 继电器后端。
 
-## 等待本轮固件验证
-
-- 完整运行时依赖、三个独立 APK 和 LuCI 版本表。
-- ROM 二进制应急恢复与本地未受信任 APK 上传边界。
-- H.264、H.265、VP8、VP9 软件编码器单帧烟测。
-- USB Audio/ALSA 模块加载和无采集卡 One-KVM 内存占用。
+详细实测数据见 [2026-07-12 full-profile hardware validation](hardware-validation-20260712.md)。
 
 ## 不支持
 
