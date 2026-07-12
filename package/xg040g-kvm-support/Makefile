@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=xg040g-kvm-support
 PKG_VERSION:=0.1.0
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 
 PKG_MAINTAINER:=XG-040G-MD OpenWrt One-KVM contributors
 PKG_LICENSE:=GPL-3.0-only
@@ -19,7 +19,7 @@ define Package/xg040g-kvm-support
 	+kmod-scsi-core +kmod-usb-serial +kmod-usb-serial-ch341 \
 	+kmod-usb-storage +kmod-usb-storage-uas +kmod-usb3 +kmod-video-uvc \
 	+parted +picocom +rclone +rclone-config +smartmontools +usbutils \
-	+ustreamer +v4l-utils +wget-ssl +xg040g-switch-management
+	+ustreamer +v4l-utils +wget-ssl +xg040g-cloud-pxe +xg040g-switch-management
 endef
 
 define Package/xg040g-kvm-support/description

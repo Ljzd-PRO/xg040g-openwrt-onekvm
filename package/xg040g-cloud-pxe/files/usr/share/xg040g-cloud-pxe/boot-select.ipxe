@@ -1,0 +1,3 @@
+#!ipxe
+
+chain --replace http://10.40.0.1:8081/cloud.ipxe

@@ -169,7 +169,7 @@ dhcp-userclass=set:kvm_ipxe,iPXE
 dhcp-match=set:kvm_efi64,option:client-arch,7
 dhcp-match=set:kvm_efi64,option:client-arch,9
 dhcp-match=set:kvm_efi64,option:client-arch,11
-dhcp-boot=tag:kvm_ipxe,http://10.40.0.1:8081/boot.ipxe
+dhcp-boot=tag:kvm_ipxe,http://10.40.0.1:8081/boot-select.ipxe
 dhcp-boot=tag:!kvm_ipxe,tag:kvm_efi64,ipxe.efi
 dhcp-boot=tag:!kvm_ipxe,tag:!kvm_efi64,undionly.kpxe
 EOF
@@ -226,6 +226,13 @@ config rule 'pxe_http'
 	option src 'pxe'
 	option proto 'tcp'
 	option dest_port '8081'
+	option target 'ACCEPT'
+
+config rule 'pxe_cloud_http'
+	option name 'PXE cloud HTTP'
+	option src 'pxe'
+	option proto 'tcp'
+	option dest_port '8083'
 	option target 'ACCEPT'
 
 config rule 'pxe_ping'

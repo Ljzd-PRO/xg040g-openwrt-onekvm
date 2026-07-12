@@ -1,0 +1,47 @@
+#!ipxe
+
+set cloud http://10.40.0.1:8083
+:menu
+menu XG-040G-MD Cloud PXE
+item firpe_net FirPE network mode
+item firpe_offline FirPE offline mode
+item systemrescue SystemRescue
+item shell iPXE shell
+item local Local KVMSTORE menu
+item reboot Reboot
+choose --default firpe_offline --timeout 8000 target && goto ${target}
+
+:firpe_net
+kernel ${cloud}/wimboot gui index=1 || goto failed
+initrd -n BCD ${cloud}/firpe/PXEBCD BCD || goto failed
+initrd -n boot.sdi ${cloud}/firpe/boot.sdi boot.sdi || goto failed
+initrd -n bootmgfw.efi ${cloud}/firpe/bootmgfw.efi bootmgfw.efi || goto failed
+initrd -n boot.wim ${cloud}/firpe/boot.wim boot.wim || goto failed
+boot || goto failed
+
+:firpe_offline
+kernel ${cloud}/wimboot gui index=2 || goto failed
+initrd -n BCD ${cloud}/firpe/PXEBCD BCD || goto failed
+initrd -n boot.sdi ${cloud}/firpe/boot.sdi boot.sdi || goto failed
+initrd -n bootmgfw.efi ${cloud}/firpe/bootmgfw.efi bootmgfw.efi || goto failed
+initrd -n boot.wim ${cloud}/firpe/boot.wim boot.wim || goto failed
+boot || goto failed
+
+:systemrescue
+kernel ${cloud}/systemrescue/sysresccd/boot/x86_64/vmlinuz archisobasedir=systemrescue/sysresccd ip=dhcp archiso_http_srv=${cloud}/ || goto failed
+initrd ${cloud}/systemrescue/sysresccd/boot/intel-ucode.img ||
+initrd ${cloud}/systemrescue/sysresccd/boot/amd-ucode.img ||
+initrd ${cloud}/systemrescue/sysresccd/boot/x86_64/sysresccd.img || goto failed
+boot || goto failed
+
+:local
+chain --replace http://10.40.0.1:8081/boot.ipxe || goto failed
+:shell
+shell
+goto menu
+:reboot
+reboot
+:failed
+echo Boot failed. Press a key to return to the menu.
+prompt
+goto menu

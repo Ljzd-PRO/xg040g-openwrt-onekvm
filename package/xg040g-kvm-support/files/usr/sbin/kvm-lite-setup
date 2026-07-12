@@ -59,6 +59,7 @@ case "$cmd" in
 		verify_pxe_network
 		ensure_dirs
 		configure_fstab
+		/usr/sbin/xg040g-cloud-pxe install-assets >/dev/null 2>&1 || true
 		/etc/init.d/xg040g-pxe-http restart >/dev/null 2>&1 || true
 		/etc/init.d/dnsmasq restart >/dev/null 2>&1 || true
 		status

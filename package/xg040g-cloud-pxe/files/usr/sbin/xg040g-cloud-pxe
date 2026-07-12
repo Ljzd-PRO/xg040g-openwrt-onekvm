@@ -1,0 +1,103 @@
+#!/bin/sh
+set -eu
+
+CONFIG='/etc/xg040g/rclone.conf'
+UCI_CONFIG='xg040g-kvm.cloud_pxe'
+ASSETS='/usr/share/xg040g-cloud-pxe'
+STORE='/mnt/kvmstore'
+MAX_CONFIG=65536
+
+fail() { echo "ERROR=$1"; exit "${2:-1}"; }
+
+validate_remote_path() {
+	value="$1"
+	[ -n "$value" ] || fail 'remote_path_required' 64
+	[ "${#value}" -le 1024 ] || fail 'remote_path_too_long' 64
+	printf '%s' "$value" | od -An -tu1 | grep -Eq '(^| )(0|10|13)( |$)' && fail 'remote_path_invalid_characters' 64
+	case "$value" in :*) fail 'inline_remote_forbidden' 64 ;; esac
+	remote="${value%%:*}"
+	if [ "$remote" = "$value" ] || [ -z "$remote" ]; then
+		fail 'named_remote_required' 64
+	fi
+	echo "$remote" | grep -Eq '^[A-Za-z0-9._ -]+$' || fail 'remote_name_invalid' 64
+}
+
+validate_config() {
+	file="$1"
+	remote_path="$2"
+	if [ ! -f "$file" ] || [ -L "$file" ]; then
+		fail 'config_not_regular' 64
+	fi
+	size="$(wc -c < "$file" | tr -d ' ')"
+	[ "$size" -le "$MAX_CONFIG" ] || fail 'config_too_large' 64
+	validate_remote_path "$remote_path"
+	remote="${remote_path%%:*}:"
+	/usr/bin/rclone listremotes --config "$file" 2>/dev/null | grep -Fxq "$remote" || fail 'remote_not_found' 65
+}
+
+install_assets() {
+	mkdir -p "$STORE/tftp" "$STORE/netboot"
+	for file in ipxe.efi undionly.kpxe; do
+		[ -s "$ASSETS/$file" ] && cp "$ASSETS/$file" "$STORE/tftp/$file"
+	done
+	cp "$ASSETS/cloud.ipxe" "$STORE/netboot/cloud.ipxe"
+	if [ "$(uci -q get "$UCI_CONFIG.enabled" || echo 0)" = '1' ]; then
+		cp "$ASSETS/boot-select.ipxe" "$STORE/netboot/boot-select.ipxe"
+	else
+		printf '%s\n' '#!ipxe' 'chain --replace http://10.40.0.1:8081/boot.ipxe' > "$STORE/netboot/boot-select.ipxe"
+	fi
+	chmod 0644 "$STORE/tftp/ipxe.efi" "$STORE/tftp/undionly.kpxe" \
+		"$STORE/netboot/boot-select.ipxe" "$STORE/netboot/cloud.ipxe"
+}
+
+status() {
+	enabled="$(uci -q get "$UCI_CONFIG.enabled" || echo 0)"
+	remote_path="$(uci -q get "$UCI_CONFIG.remote_path" || true)"
+	running=0
+	pidof rclone >/dev/null 2>&1 && netstat -ltn 2>/dev/null | grep -q '10.40.0.1:8083' && running=1
+	printf 'ENABLED=%s\nRUNNING=%s\nREMOTE_PATH=%s\nCONFIG_EXISTS=%s\n' \
+		"$enabled" "$running" "$remote_path" "$([ -s "$CONFIG" ] && echo 1 || echo 0)"
+}
+
+cmd="${1:-status}"
+case "$cmd" in
+	validate-saved)
+		remote_path="$(uci -q get "$UCI_CONFIG.remote_path" || true)"
+		validate_config "$CONFIG" "$remote_path"
+		echo 'VALID=1'
+		;;
+	test)
+		file="${2:-}"; remote_path="${3:-}"
+		validate_config "$file" "$remote_path"
+		timeout 20 /usr/bin/rclone lsf --config "$file" --max-depth 1 "$remote_path" >/dev/null 2>&1 || fail 'remote_unreachable' 69
+		echo 'VALID=1'; echo 'REACHABLE=1'
+		;;
+	save)
+		file="${2:-}"; remote_path="${3:-}"; enabled="${4:-0}"
+		[ "$enabled" = '0' ] || [ "$enabled" = '1' ] || fail 'enabled_invalid' 64
+		validate_config "$file" "$remote_path"
+		mkdir -p /etc/xg040g
+		cp "$file" "$CONFIG.new"
+		chmod 0600 "$CONFIG.new"
+		mv "$CONFIG.new" "$CONFIG"
+		uci set "$UCI_CONFIG.enabled=$enabled"
+		uci set "$UCI_CONFIG.remote_path=$remote_path"
+		uci commit xg040g-kvm
+		install_assets
+		/etc/init.d/xg040g-cloud-pxe restart >/dev/null 2>&1 || [ "$enabled" = '0' ]
+		echo 'SAVED=1'
+		;;
+	clear)
+		[ "${2:-}" = 'CLEAR' ] || fail 'confirmation_required' 64
+		/etc/init.d/xg040g-cloud-pxe stop >/dev/null 2>&1 || true
+		: > "$CONFIG"; chmod 0600 "$CONFIG"
+		uci set "$UCI_CONFIG.enabled=0"
+		uci set "$UCI_CONFIG.remote_path="
+		uci commit xg040g-kvm
+		install_assets
+		echo 'CLEARED=1'
+		;;
+	install-assets) install_assets ;;
+	status) status ;;
+	*) fail 'invalid_action' 64 ;;
+esac
