@@ -1,0 +1,54 @@
+#!/bin/sh
+set -u
+
+DATA_DIR="$(uci -q get one-kvm.main.data_dir || echo /etc/one-kvm)"
+LOCK_DIR='/var/lock/one-kvm-reset.lock'
+SERVICE_ENABLED="$(uci -q get one-kvm.main.enabled || echo 0)"
+RESET_COMPLETE=0
+
+cleanup() {
+	rmdir "$LOCK_DIR" >/dev/null 2>&1 || true
+	if [ "$RESET_COMPLETE" != '1' ] && [ "$SERVICE_ENABLED" = '1' ] && ! pidof one-kvm >/dev/null 2>&1; then
+		/etc/init.d/one-kvm start >/dev/null 2>&1 || true
+	fi
+}
+trap cleanup EXIT INT TERM
+
+[ "$DATA_DIR" = '/etc/one-kvm' ] || {
+	echo 'RESET_ERROR=unsupported_data_directory'
+	exit 2
+}
+[ ! -L "$DATA_DIR" ] || {
+	echo 'RESET_ERROR=data_directory_is_symlink'
+	exit 2
+}
+mkdir "$LOCK_DIR" 2>/dev/null || {
+	echo 'RESET_ERROR=operation_in_progress'
+	exit 3
+}
+
+/etc/init.d/one-kvm stop >/dev/null 2>&1 || true
+tries=0
+while pidof one-kvm >/dev/null 2>&1; do
+	tries=$((tries + 1))
+	[ "$tries" -lt 20 ] || {
+		echo 'RESET_ERROR=service_did_not_stop'
+		exit 4
+	}
+	sleep 1
+done
+
+rm -rf /etc/one-kvm
+mkdir -p /etc/one-kvm
+chmod 0700 /etc/one-kvm
+chown root:root /etc/one-kvm
+
+if [ "$SERVICE_ENABLED" = '1' ]; then
+	/etc/init.d/one-kvm start >/dev/null 2>&1 || {
+		echo 'RESET_ERROR=service_restart_failed'
+		exit 5
+	}
+fi
+
+RESET_COMPLETE=1
+echo 'RESET_OK=1'

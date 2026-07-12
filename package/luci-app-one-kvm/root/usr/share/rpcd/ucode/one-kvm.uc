@@ -62,6 +62,8 @@ const methods = {
 			let port = validPort(execCommand("uci -q get one-kvm.main.http_port || echo 8080"));
 			let listen = execCommand("netstat -ltn 2>/dev/null | grep -Fq -- " + shellquote(':' + port + ' ') + " && echo 1 || echo 0");
 			let udcCount = execCommand("find /sys/class/udc -mindepth 1 -maxdepth 1 2>/dev/null | wc -l");
+			let dataDir = execCommand("uci -q get one-kvm.main.data_dir || echo /etc/one-kvm");
+			let pxeUplink = execCommand("uci -q get xg040g-management.pxe.allow_uplink || echo 0");
 
 			return {
 				pid: pid,
@@ -73,7 +75,12 @@ const methods = {
 				listening: pid != null && pid != '' && listen == '1',
 				video0_exists: fileExists('/dev/video0'),
 				ch9329_exists: fileExists('/dev/ch9329'),
-				host_only: udcCount == '0'
+				host_only: udcCount == '0',
+				data_dir: dataDir,
+				reset_supported: dataDir == '/etc/one-kvm',
+				pxe_uplink: pxeUplink == '1',
+				pxe_address: '10.40.0.1',
+				pxe_http_port: '8081'
 			};
 		}
 	},
@@ -148,6 +155,45 @@ const methods = {
 				success: success,
 				output: output,
 				error: success ? null : 'Firmware binary restore failed'
+			};
+		}
+	},
+
+	set_pxe_uplink: {
+		args: { enabled: false },
+		call: function(req) {
+			let value = req && req.args ? req.args.enabled : null;
+			let enable = value === true || value == 1 || value == '1';
+			let disable = value === false || value == 0 || value == '0';
+			if (!enable && !disable)
+				return { success: false, error: 'Invalid PXE uplink value' };
+
+			let action = enable ? 'enable' : 'disable';
+			let output = execCommand('/usr/sbin/xg040g-pxe-uplink ' + action + ' 2>&1');
+			let state = execCommand("uci -q get xg040g-management.pxe.allow_uplink || echo 0");
+			return {
+				success: state == (enable ? '1' : '0'),
+				enabled: state == '1',
+				output: output
+			};
+		}
+	},
+
+	reset_data: {
+		args: { confirm: 'confirm' },
+		call: function(req) {
+			let confirmation = req && req.args ? req.args.confirm : null;
+			if (confirmation != 'RESET')
+				return { success: false, error: 'Confirmation is required' };
+			if (!fileExists('/usr/sbin/one-kvm-reset-data'))
+				return { success: false, error: 'Reset helper is missing' };
+
+			let output = execCommand('/usr/sbin/one-kvm-reset-data 2>&1');
+			let success = output != null && match(output, /(^|\n)RESET_OK=1($|\n)/) != null;
+			return {
+				success: success,
+				output: output,
+				error: success ? null : 'One-KVM data reset failed'
 			};
 		}
 	}

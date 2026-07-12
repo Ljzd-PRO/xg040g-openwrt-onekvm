@@ -42,7 +42,9 @@
 			"ubus": {
 				"luci.one-kvm": [
 					"service_action",
-					"restore_firmware_binary"
+					"restore_firmware_binary",
+					"set_pxe_uplink",
+					"reset_data"
 				]
 			},
 			"file": {
@@ -65,6 +67,12 @@
 					"exec"
 				],
 				"/usr/sbin/one-kvm-restore-firmware": [
+					"exec"
+				],
+				"/usr/sbin/one-kvm-reset-data": [
+					"exec"
+				],
+				"/usr/sbin/xg040g-pxe-uplink": [
 					"exec"
 				]
 			}

@@ -95,3 +95,81 @@ msgstr "固件内置程序已恢复。"
 
 msgid "Firmware binary restore failed."
 msgstr "固件内置程序恢复失败。"
+
+msgid "PXE port"
+msgstr "PXE 端口"
+
+msgid "PXE upstream access"
+msgstr "PXE 上游访问"
+
+msgid "Enabled through NAT"
+msgstr "已通过 NAT 启用"
+
+msgid "Local KVMSTORE only"
+msgstr "仅访问本地 KVMSTORE"
+
+msgid "Enable PXE uplink"
+msgstr "启用 PXE 上游访问"
+
+msgid "Disable PXE uplink"
+msgstr "禁用 PXE 上游访问"
+
+msgid "PXE clients will be routed to the upstream management network through NAT. LAN4 remains isolated from device management services."
+msgstr "PXE 客户端将通过 NAT 访问上游管理网络。LAN4 仍无法访问设备管理服务。"
+
+msgid "Failed to update PXE uplink."
+msgstr "更新 PXE 上游访问失败。"
+
+msgid "PXE uplink enabled."
+msgstr "PXE 上游访问已启用。"
+
+msgid "PXE uplink disabled."
+msgstr "PXE 上游访问已禁用。"
+
+msgid "One-KVM data directory"
+msgstr "One-KVM 数据目录"
+
+msgid "Reset One-KVM data"
+msgstr "重置 One-KVM 数据"
+
+msgid "Reset data"
+msgstr "重置数据"
+
+msgid "Resetting..."
+msgstr "正在重置..."
+
+msgid "Reset refused because One-KVM uses a custom data directory."
+msgstr "One-KVM 使用了自定义数据目录，已拒绝重置。"
+
+msgid "Reset refused because /etc/one-kvm is a symbolic link."
+msgstr "/etc/one-kvm 是符号链接，已拒绝重置。"
+
+msgid "Another One-KVM data reset is already running."
+msgstr "另一个 One-KVM 数据重置操作正在执行。"
+
+msgid "One-KVM did not stop; no data was deleted."
+msgstr "One-KVM 未能停止，未删除任何数据。"
+
+msgid "Data was reset, but One-KVM could not be restarted."
+msgstr "数据已重置，但 One-KVM 无法重新启动。"
+
+msgid "Delete all One-KVM data and return to setup"
+msgstr "删除全部 One-KVM 数据并返回初始化"
+
+msgid "Reset is only available when the data directory is /etc/one-kvm"
+msgstr "仅当数据目录为 /etc/one-kvm 时才能重置"
+
+msgid "This permanently deletes the One-KVM account, password, database, sessions, certificates, updates and every file under /etc/one-kvm."
+msgstr "此操作将永久删除 One-KVM 账号、密码、数据库、会话、证书、更新缓存及 /etc/one-kvm 下的全部文件。"
+
+msgid "OpenWrt settings, /etc/config/one-kvm, the firmware binary and KVMSTORE are not deleted."
+msgstr "OpenWrt 设置、/etc/config/one-kvm、固件内置程序和 KVMSTORE 不会被删除。"
+
+msgid "I understand that the One-KVM data cannot be recovered."
+msgstr "我了解 One-KVM 数据删除后无法恢复。"
+
+msgid "One-KVM data was reset. Complete setup again before use."
+msgstr "One-KVM 数据已重置，请重新完成初始化后再使用。"
+
+msgid "One-KVM data reset failed."
+msgstr "One-KVM 数据重置失败。"

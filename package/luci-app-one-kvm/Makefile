@@ -2,12 +2,12 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-one-kvm
 PKG_VERSION:=20260710
-PKG_RELEASE:=3
+PKG_RELEASE:=5
 PKG_MAINTAINER:=XG-040G-MD OpenWrt One-KVM contributors
 PKG_LICENSE:=Apache-2.0
 
 LUCI_TITLE:=LuCI support for One-KVM
-LUCI_DEPENDS:=+luci-base +rpcd +rpcd-mod-ucode +one-kvm
+LUCI_DEPENDS:=+luci-base +rpcd +rpcd-mod-ucode +one-kvm +xg040g-switch-management
 LUCI_PKGARCH:=all
 
 define Package/$(PKG_NAME)/conffiles
