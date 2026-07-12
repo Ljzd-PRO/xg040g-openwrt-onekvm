@@ -85,6 +85,7 @@ for patch_file in patches/packages/onekvm/*.patch; do
 done
 git --git-dir=.cache/feeds/luci.git archive "$luci_commit" \
 	luci.mk \
+	applications/luci-app-frpc \
 	applications/luci-app-package-manager \
 	modules/luci-mod-status | tar -x -C "$tmp/luci"
 git -C "$tmp/luci" init -q
@@ -99,6 +100,8 @@ done
 # Debian dash rejects the upstream OpenWrt script's fd 200 redirection even
 # though BusyBox ash accepts it. ShellCheck below still validates sh semantics.
 bash -n "$tmp/luci/applications/luci-app-package-manager/root/usr/libexec/package-manager-call"
+node --check "$tmp/luci/applications/luci-app-frpc/htdocs/luci-static/resources/view/frpc.js"
+jq empty "$tmp/luci/applications/luci-app-frpc/root/usr/share/luci/menu.d/luci-app-frpc.json"
 node --check "$tmp/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/29_ports.js"
 grep -q 'const seen_ports = new Set()' \
 	"$tmp/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/29_ports.js"
@@ -111,6 +114,8 @@ grep -Eq '^CONFIG_TARGET_PREINIT_TIMEOUT=12$' configs/minimal.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-switch-management=y$' configs/minimal.config
 grep -Eq '^CONFIG_PACKAGE_one-kvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_luci-app-one-kvm=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_luci-app-frpc=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_luci-i18n-frpc-zh-cn=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-kvm-support=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-cloud-pxe=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-onekvm-runtime=y$' configs/onekvm.config
@@ -167,6 +172,12 @@ grep -Eq '^CONFIG_PACKAGE_ttyd=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_gostc=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_easytier-core=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_frpc=y$' configs/onekvm.config
+# shellcheck disable=SC2016
+grep -q 'INSTALL_CONF.*files/$(2).config.*etc/config/$(2)' "$tmp/packages/net/frp/Makefile"
+# shellcheck disable=SC2016
+grep -q 'INSTALL_BIN.*files/$(2).init.*etc/init.d/$(2)' "$tmp/packages/net/frp/Makefile"
+grep -q "frpc_luci_exists: frpcLuci" package/luci-app-one-kvm/root/usr/share/rpcd/ucode/one-kvm.uc
+grep -q "frpcManagementButton(status)" package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/general.js
 grep -Eq '^CONFIG_BUILD_PATENTED=y$' configs/onekvm.config
 grep -Eq '^# CONFIG_PACKAGE_libffmpeg-mini is not set$' configs/onekvm.config
 grep -Eq '^PKG_LICENSE:=GPL-3.0-only$' package/one-kvm/Makefile

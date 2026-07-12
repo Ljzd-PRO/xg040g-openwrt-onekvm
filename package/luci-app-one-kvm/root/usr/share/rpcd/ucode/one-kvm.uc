@@ -84,6 +84,12 @@ const methods = {
 	get_status: {
 		call: function() {
 			let pid = execCommand("pidof one-kvm 2>/dev/null | cut -d' ' -f1");
+			let frpcPid = execCommand("pidof frpc 2>/dev/null | cut -d' ' -f1");
+			let frpcBinary = fileExists('/usr/bin/frpc');
+			let frpcInit = fileExists('/etc/init.d/frpc');
+			let frpcConfig = fileExists('/etc/config/frpc');
+			let frpcLuci = fileExists('/www/luci-static/resources/view/frpc.js') &&
+				fileExists('/usr/share/luci/menu.d/luci-app-frpc.json');
 			let configEnabled = execCommand("uci -q get one-kvm.main.enabled || echo 0");
 			let port = validPort(execCommand("uci -q get one-kvm.main.http_port || echo 8080"));
 			let listen = execCommand("netstat -ltn 2>/dev/null | grep -Fq -- " + shellquote(':' + port + ' ') + " && echo 1 || echo 0");
@@ -106,7 +112,14 @@ const methods = {
 				reset_supported: dataDir == '/etc/one-kvm',
 				pxe_uplink: pxeUplink == '1',
 				pxe_address: '10.40.0.1',
-				pxe_http_port: '8081'
+				pxe_http_port: '8081',
+				frpc_binary_exists: frpcBinary,
+				frpc_init_exists: frpcInit,
+				frpc_config_exists: frpcConfig,
+				frpc_luci_exists: frpcLuci,
+				frpc_available: frpcBinary && frpcInit && frpcConfig && frpcLuci,
+				frpc_running: frpcPid != null && frpcPid != '',
+				frpc_boot_enabled: frpcInit ? init_enabled('frpc') : false
 			};
 		}
 	},

@@ -216,6 +216,47 @@ function resetDataButton(status) {
 	return E('button', attrs, _('Reset One-KVM data'));
 }
 
+function frpcMissingText(status) {
+	if (!status.frpc_binary_exists && !status.frpc_luci_exists)
+		return _('frpc and luci-app-frpc are missing');
+	if (!status.frpc_binary_exists)
+		return _('frpc binary is missing');
+	if (!status.frpc_luci_exists)
+		return _('luci-app-frpc is missing');
+	if (!status.frpc_init_exists || !status.frpc_config_exists)
+		return _('FRPC service files are incomplete');
+	return '';
+}
+
+function frpcManagementButton(status) {
+	const missing = frpcMissingText(status);
+	if (!status.frpc_available)
+		return E('button', {
+			'class': 'btn cbi-button',
+			'disabled': true,
+			'title': missing
+		}, _('Open FRPC management'));
+
+	return E('a', {
+		'class': 'btn cbi-button cbi-button-action',
+		'href': L.url('admin/services/frpc'),
+		'title': _('Configure the standalone FRPC service')
+	}, _('Open FRPC management'));
+}
+
+function frpcStatus(status) {
+	if (!status.frpc_available)
+		return E('span', { 'style': 'color:#b00' }, frpcMissingText(status));
+
+	return E('span', {}, [
+		badge(status.frpc_running, status.frpc_running ? _('Running') : _('Stopped'), _('Stopped')),
+		' / ',
+		status.frpc_boot_enabled ? _('Boot enabled') : _('Boot disabled'),
+		' / ',
+		E('a', { 'href': L.url('admin/services/frpc') }, _('Open configuration'))
+	]);
+}
+
 function renderStatus(status, versions, hwcheck) {
 	const url = 'http://' + window.location.hostname + ':' + (status.http_port || '8080') + '/';
 	let overlayText;
@@ -252,6 +293,7 @@ function renderStatus(status, versions, hwcheck) {
 			E('tr', {}, [ E('td', {}, _('CH9329')), E('td', {}, badge(status.ch9329_exists, _('/dev/ch9329 found'), _('/dev/ch9329 missing'))) ]),
 			E('tr', {}, [ E('td', {}, _('PXE port')), E('td', {}, codeValue('LAN4 / 10.40.0.1:8081')) ]),
 			E('tr', {}, [ E('td', {}, _('PXE upstream access')), E('td', {}, badge(status.pxe_uplink, _('Enabled through NAT'), _('Local KVMSTORE only'))) ]),
+			E('tr', {}, [ E('td', {}, _('FRPC remote access')), E('td', {}, frpcStatus(status)) ]),
 			E('tr', {}, [ E('td', {}, _('One-KVM data directory')), E('td', {}, codeValue(status.data_dir)) ]),
 			E('tr', {}, [ E('td', {}, _('Hardware check')), E('td', {}, codeValue(hwcheck.output)) ])
 		]),
@@ -263,6 +305,7 @@ function renderStatus(status, versions, hwcheck) {
 			button(_('Disable boot'), 'disable', 'cbi-button-reset'), ' ',
 			restoreButton(versions), ' ',
 			pxeUplinkButton(status), ' ',
+			frpcManagementButton(status), ' ',
 			resetDataButton(status)
 		])
 	]);

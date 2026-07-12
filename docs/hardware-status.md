@@ -11,6 +11,8 @@
 - 两个 xHCI 控制器工作，系统显示四个 USB2/USB3 root hub。
 - host-only 状态下 `/sys/class/udc` 为空。
 - One-KVM 0.2.3 完整运行时、LuCI 版本状态、默认停用和 ROM 恢复均已验证。
+- FRPC 0.69.1 标准 UCI/procd 服务、官方 LuCI 中文配置页、One-KVM 状态与
+  跳转入口已完成保留配置刷机和实机验证；FRPC 默认保持停用。
 - MS2109 UVC 视频、USB Audio、One-KVM MJPEG/快照/Opus 音频链路已验证。
 - CH340 + CH9329 `V3.8` 在 9600 baud 下完成键盘 LED 往返和相对鼠标测试。
 - H.264、H.265、VP8、VP9 软件编码器均完成 720p 单帧烟测。
@@ -36,6 +38,8 @@
 详细实测数据见 [2026-07-12 full-profile hardware validation](hardware-validation-20260712.md)
 、[2026-07-12 WebDAV/Hyper-V PXE validation](hardware-validation-20260712-webdav-hyperv-pxe.md)
 和 [2026-07-13 monitoring validation](hardware-validation-20260713-monitoring.md)。
+FRPC 独立管理的本轮结果见
+[2026-07-13 FRPC validation](hardware-validation-20260713-frpc.md)。
 
 ## 不支持
 

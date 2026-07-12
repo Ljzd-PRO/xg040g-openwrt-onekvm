@@ -1,25 +1,3 @@
-diff --git a/net/frp/Makefile b/net/frp/Makefile
-index 07371ce..e15b218 100644
---- a/net/frp/Makefile
-+++ b/net/frp/Makefile
-@@ -35,17 +35,7 @@ endef
- 
- define Package/frp/install
- 	$(INSTALL_DIR) $(1)/usr/bin/
--	$(INSTALL_DIR) $(1)/etc/config/
--	$(INSTALL_DIR) $(1)/etc/init.d/
--
- 	$(INSTALL_BIN) $(GO_PKG_BUILD_BIN_DIR)/$(2) $(1)/usr/bin/
--	$(INSTALL_CONF) ./files/$(2).config $(1)/etc/config/$(2)
--	$(INSTALL_BIN)  ./files/$(2).init   $(1)/etc/init.d/$(2)
--
--	if [ -r ./files/$(2).uci-defaults ]; then \
--		$(INSTALL_DIR) $(1)/etc/uci-defaults; \
--		$(INSTALL_DATA) ./files/$(2).uci-defaults $(1)/etc/uci-defaults/$(2); \
--	fi
- endef
- 
- define Package/frp/template
 diff --git a/utils/ttyd/Makefile b/utils/ttyd/Makefile
 index c6733c4..92a99a5 100644
 --- a/utils/ttyd/Makefile

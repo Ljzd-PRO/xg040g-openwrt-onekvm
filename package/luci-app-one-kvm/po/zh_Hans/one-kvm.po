@@ -368,3 +368,33 @@ msgstr "视频"
 
 msgid "Warn"
 msgstr "警告"
+
+msgid "frpc and luci-app-frpc are missing"
+msgstr "缺少 frpc 和 luci-app-frpc"
+
+msgid "frpc binary is missing"
+msgstr "缺少 frpc 程序"
+
+msgid "luci-app-frpc is missing"
+msgstr "缺少 luci-app-frpc"
+
+msgid "FRPC service files are incomplete"
+msgstr "FRPC 服务文件不完整"
+
+msgid "Open FRPC management"
+msgstr "打开 FRPC 管理"
+
+msgid "Configure the standalone FRPC service"
+msgstr "配置独立的 FRPC 服务"
+
+msgid "Boot enabled"
+msgstr "已启用开机启动"
+
+msgid "Boot disabled"
+msgstr "未启用开机启动"
+
+msgid "Open configuration"
+msgstr "打开配置"
+
+msgid "FRPC remote access"
+msgstr "FRPC 远程接入"

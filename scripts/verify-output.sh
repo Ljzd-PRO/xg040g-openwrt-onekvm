@@ -52,6 +52,8 @@ if [[ "$profile" == "onekvm" ]]; then
 		gostc
 		easytier-core
 		frpc
+		luci-app-frpc
+		luci-i18n-frpc-zh-cn
 		kmod-tun
 		kmod-video-uvc
 		v4l-utils

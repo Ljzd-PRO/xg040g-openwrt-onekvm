@@ -26,6 +26,8 @@
 - [x] 四个 xHCI root hub、空 UDC。
 - [x] One-KVM 版本、LuCI RPC 和默认停用策略正确。
 - [x] ttyd、GOSTC、EasyTier、FRPC、音频库和运行时 ABI 版本正确。
+- [x] FRPC 标准 UCI/procd 文件、官方 LuCI 中文页面及 One-KVM 状态入口正常，
+  默认未启动且未启用开机启动。
 - [x] `one-kvm-codec-check` 的 H.264/H.265/VP8/VP9 单帧测试全部通过。
 - [x] 无硬件启动烟测 RSS 小于 100 MiB，`MemAvailable` 不低于 64 MiB。
 - [ ] 不同签名的无害 APK 可经 LuCI 本地上传安装，URL 安装策略未放宽。

@@ -23,6 +23,7 @@ CH340/CH341 + CH9329 模拟键盘鼠标，LAN4 为独立 PXE 端口。
 - [首次访问](#首次访问)
 - [使用 One-KVM](#使用-one-kvm)
 - [查看统计与温度](#查看统计与温度)
+- [使用 FRPC 远程管理](#使用-frpc-远程管理)
 - [使用 PXE](#使用-pxe)
 - [本地 USB 硬盘 PXE](#本地-usb-硬盘-pxe)
 - [无硬盘 Cloud PXE](#无硬盘-cloud-pxe)
@@ -39,6 +40,7 @@ CH340/CH341 + CH9329 模拟键盘鼠标，LAN4 为独立 PXE 端口。
 | LAN4 独立 DHCP/TFTP/HTTP iPXE | 已实机验证 |
 | One-KVM 0.2.3 与 LuCI 管理包 | 已实机验证 |
 | LuCI 统计与 AN7581 CPU 温度历史 | 已实机验证 |
+| FRPC 独立服务、LuCI 配置与 One-KVM 入口 | 已实机验证 |
 | MS2109 UVC 视频与 USB Audio | 已实机验证 |
 | CH340 + CH9329 键鼠控制 | 已实机验证，默认 9600 baud |
 | H.264、H.265、VP8、VP9 | 软件编码可用，无硬件编码 |
@@ -248,6 +250,33 @@ RRD 历史默认保存在 `/tmp/rrd`，重启后会清空，避免持续写入 N
 cat /sys/class/thermal/thermal_zone0/type
 cat /sys/class/thermal/thermal_zone0/temp
 ```
+
+## 使用 FRPC 远程管理
+
+固件内置 `frpc`、官方 `luci-app-frpc` 和简体中文翻译，可通过自有 FRPS
+服务器从外网访问 LuCI、SSH 或 One-KVM。FRPC 默认关闭，不会在未配置时主动
+连接任何服务器。
+
+1. 打开“服务 -> One-KVM -> 常规”，在状态表中检查“FRPC 远程接入”。
+2. 点击“打开 FRPC 管理”，也可以直接打开“服务 -> frp 客户端”。
+3. 在“常规设置”填写 FRPS 的地址、端口和 token。
+4. 添加代理时，将本地地址填写为 `127.0.0.1`。LuCI HTTP 使用本地端口
+   `80`，SSH 使用 `22`，One-KVM 默认使用 `8080`；远程端口按 FRPS 配置填写。
+5. 保存应用后，打开“系统 -> 启动项”，启动 `frpc` 并按需启用开机启动。
+
+![FRPC LuCI 中文配置页面](docs/images/luci-frpc.png)
+
+One-KVM 页面会显示 FRPC 当前是否运行、是否开机启动，并提供配置入口。如果
+固件缺少 `frpc`、`luci-app-frpc`、配置文件或 init 脚本，入口会禁用并指出
+缺少的组件。标准 LuCI 配置保存在 `/etc/config/frpc`，运行时会生成
+`/var/etc/frpc.ini`。
+
+保留配置刷入新固件后，如果浏览器仍显示旧版 One-KVM 页面，请按 `Ctrl+F5`
+强制刷新，或使用隐私窗口重新登录 LuCI。这只是在清除浏览器缓存，不会修改
+设备配置。
+
+这个独立 FRPC 服务与 One-KVM 上游“第三方接入”中的进程管理相互独立。若
+同时使用两者，应为代理设置不同的名称和远程端口，避免重复启动同一隧道。
 
 ## 使用 PXE
 
