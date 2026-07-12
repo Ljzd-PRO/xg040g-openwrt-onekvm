@@ -307,6 +307,7 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 	done < /project/locks/feeds.conf
 
 	./scripts/feeds update -a
+	apply_patch_series /work/openwrt/feeds/luci /project/patches/luci/common
 	if [[ "$PROFILE" == "onekvm" ]]; then
 		apply_patch_series /work/openwrt/feeds/packages /project/patches/packages/onekvm
 		apply_patch_series /work/openwrt/feeds/luci /project/patches/luci/onekvm

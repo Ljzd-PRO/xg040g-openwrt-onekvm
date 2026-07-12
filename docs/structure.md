@@ -58,6 +58,7 @@
 | `package/xg040g-kvm-support/` | host-only KVM-lite 辅助脚本：UVC、CH9329、PXE/rclone helper 等。 |
 | `package/xg040g-switch-management/` | DHCP 管理交换桥、IPv4LL/mDNS、LAN4 PXE 隔离、网络迁移与恢复 helper。 |
 | `patches/openwrt/common/` | 两个 profile 共用的 XG-040G-MD 默认交换机/PXE 源码补丁。 |
+| `patches/luci/common/` | 两个 profile 共用的 LuCI 状态页兼容与显示修复。 |
 | `patches/*/onekvm/` | 仅完整版 profile 应用的 OpenWrt、feeds 与 LuCI 兼容补丁。 |
 
 One-KVM 包不要直接软链到 `upstream/one-kvm`。OpenWrt 的标准流程需要在临时

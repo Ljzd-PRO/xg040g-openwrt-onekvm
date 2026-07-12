@@ -83,8 +83,15 @@ for patch_file in patches/packages/onekvm/*.patch; do
 	git -C "$tmp/packages" apply --check "$repo_root/$patch_file"
 	git -C "$tmp/packages" apply "$repo_root/$patch_file"
 done
-git --git-dir=.cache/feeds/luci.git archive "$luci_commit" applications/luci-app-package-manager | tar -x -C "$tmp/luci"
+git --git-dir=.cache/feeds/luci.git archive "$luci_commit" \
+	luci.mk \
+	applications/luci-app-package-manager \
+	modules/luci-mod-status | tar -x -C "$tmp/luci"
 git -C "$tmp/luci" init -q
+for patch_file in patches/luci/common/*.patch; do
+	git -C "$tmp/luci" apply --check "$repo_root/$patch_file"
+	git -C "$tmp/luci" apply "$repo_root/$patch_file"
+done
 for patch_file in patches/luci/onekvm/*.patch; do
 	git -C "$tmp/luci" apply --check "$repo_root/$patch_file"
 	git -C "$tmp/luci" apply "$repo_root/$patch_file"
@@ -92,6 +99,9 @@ done
 # Debian dash rejects the upstream OpenWrt script's fd 200 redirection even
 # though BusyBox ash accepts it. ShellCheck below still validates sh semantics.
 bash -n "$tmp/luci/applications/luci-app-package-manager/root/usr/libexec/package-manager-call"
+node --check "$tmp/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/29_ports.js"
+grep -q 'const seen_ports = new Set()' \
+	"$tmp/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/29_ports.js"
 
 [[ "$(grep -c '^src-git ' locks/feeds.conf)" == "5" ]]
 grep -Eq '^CONFIG_TARGET_airoha_an7581_DEVICE_nokia_xg-040g-md-tcboot=y$' configs/minimal.config
@@ -139,6 +149,9 @@ fi
 grep -q "procd_set_param command /usr/sbin/uhttpd" package/xg040g-switch-management/files/etc/init.d/xg040g-pxe-http
 grep -q "args: { enabled: false }" package/luci-app-one-kvm/root/usr/share/rpcd/ucode/one-kvm.uc
 grep -q "codeValue(hwcheck.output)" package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/general.js
+for msgid in 'Start' 'Stop' 'Restart' 'Enable boot' 'Disable boot' 'Running' 'Stopped'; do
+	grep -Fq "msgid \"$msgid\"" package/luci-app-one-kvm/po/zh_Hans/one-kvm.po
+done
 grep -q "option port '8082'" package/xg040g-kvm-support/files/etc/config/xg040g-kvm
 grep -Eq '^CONFIG_PACKAGE_libffmpeg-onekvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_kmod-usb-audio=y$' configs/onekvm.config

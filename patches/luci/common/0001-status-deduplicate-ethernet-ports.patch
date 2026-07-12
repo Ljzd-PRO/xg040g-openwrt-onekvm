@@ -1,0 +1,53 @@
+diff --git a/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/29_ports.js b/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/29_ports.js
+index 1af0c93..7f02e02 100644
+--- a/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/29_ports.js
++++ b/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/29_ports.js
+@@ -393,6 +393,19 @@ return baseclass.extend({
+ 			}
+ 		}
+ 
++		/* Multiple logical interfaces may share one bridge. The builtin port
++		 * RPC can report its physical members once per logical interface. */
++		const seen_ports = new Set();
++		known_ports = known_ports.filter((port) => {
++			const name = port.netdev.getName();
++
++			if (seen_ports.has(name))
++				return false;
++
++			seen_ports.add(name);
++			return true;
++		});
++
+ 		known_ports.sort(function(a, b) {
+ 			return L.naturalCompare(a.device, b.device);
+ 		});
+
+diff --git a/modules/luci-mod-status/Makefile b/modules/luci-mod-status/Makefile
+index 0fa9163..6bd7831 100644
+--- a/modules/luci-mod-status/Makefile
++++ b/modules/luci-mod-status/Makefile
+@@ -10,7 +10,8 @@ include $(TOPDIR)/rules.mk
+ LUCI_TITLE:=LuCI Status Pages
+ LUCI_DEPENDS:=+luci-base +libiwinfo +rpcd-mod-iwinfo
+ 
+-PKG_RELEASE:=4
++PKG_RELEASE:=5
++LUCI_APPEND_RELEASE:=1
+ PKG_BUILD_DEPENDS:=iwinfo
+ PKG_LICENSE:=Apache-2.0
+ 
+
+diff --git a/luci.mk b/luci.mk
+index 6b93380..a312934 100644
+--- a/luci.mk
++++ b/luci.mk
+@@ -162,7 +162,7 @@ define Package/$(PKG_NAME)
+ endif
+   TITLE:=$(if $(LUCI_TITLE),$(LUCI_TITLE),LuCI $(LUCI_NAME) $(LUCI_TYPE))
+   DEPENDS:=$(LUCI_DEPENDS)
+-  VERSION:=$(if $(PKG_VERSION),$(if $(PKG_RELEASE),$(PKG_VERSION)-r$(PKG_RELEASE),$(PKG_VERSION)),$(PKG_SRC_VERSION))
++  VERSION:=$(if $(PKG_VERSION),$(if $(PKG_RELEASE),$(PKG_VERSION)-r$(PKG_RELEASE),$(PKG_VERSION)),$(PKG_SRC_VERSION)$(if $(LUCI_APPEND_RELEASE),-r$(PKG_RELEASE)))
+   $(if $(LUCI_EXTRA_DEPENDS),EXTRA_DEPENDS:=$(LUCI_EXTRA_DEPENDS))
+   $(if $(LUCI_PKGARCH),PKGARCH:=$(LUCI_PKGARCH))
+   $(if $(PKG_PROVIDES),PROVIDES:=$(PKG_PROVIDES))

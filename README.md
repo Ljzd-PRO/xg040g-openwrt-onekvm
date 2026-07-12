@@ -174,6 +174,11 @@ LAN2、LAN3 和 2.5G 口组成 `br-lan` 透明交换桥。固件不是传统的 
 表示没有对应的图形编辑器，不影响 IPv4LL 后备功能。截图时 LAN4 未接客户端，
 所以 `pxe` 显示未连接。
 
+`lan`、`lan6` 和 `lan_autoip` 共用 `br-lan` 时，状态总览仍只显示一次每个
+物理端口，不代表交换桥成员重复：
+
+![LuCI 状态总览：物理端口去重显示](docs/images/luci-status-ports-deduplicated.png)
+
 ## 使用 One-KVM
 
 完整版中的 One-KVM 默认停用，避免未连接采集卡或 CH9329 时反复探测。完成
@@ -203,7 +208,7 @@ ch9329-detect
 3. 新购 CH9329 通常保持 `9600` 波特率；只有用 WCH 工具修改芯片后，才同步
    改为 `115200`。
 4. 勾选“启用服务”，点击“保存并应用”。
-5. 点击“Start”和“Enable boot”，或重启设备。
+5. 点击“启动”和“启用开机启动”，或重启设备。
 6. 打开 `http://xg040g-xxxxxx.local:8080/`，完成 One-KVM 首次账号初始化。
 
 ![One-KVM LuCI 状态、版本、硬件与服务配置](docs/images/luci-onekvm-general.png)

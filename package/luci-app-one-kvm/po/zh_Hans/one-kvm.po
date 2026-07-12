@@ -233,3 +233,138 @@ msgstr "云端 PXE 配置已清除。"
 
 msgid "Failed to clear Cloud PXE configuration."
 msgstr "清除云端 PXE 配置失败。"
+
+msgid "/dev/ch9329 found"
+msgstr "已发现 /dev/ch9329"
+
+msgid "/dev/ch9329 missing"
+msgstr "未发现 /dev/ch9329"
+
+msgid "/dev/video0 found"
+msgstr "已发现 /dev/video0"
+
+msgid "/dev/video0 missing"
+msgstr "未发现 /dev/video0"
+
+msgid "Binary"
+msgstr "程序文件"
+
+msgid "Boot"
+msgstr "开机启动"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Certificate path"
+msgstr "证书路径"
+
+msgid "CH9329"
+msgstr "CH9329"
+
+msgid "Clear"
+msgstr "清除"
+
+msgid "Cloud PXE restart failed."
+msgstr "云端 PXE 重启失败。"
+
+msgid "Cloud PXE restarted."
+msgstr "云端 PXE 已重启。"
+
+msgid "Config"
+msgstr "配置"
+
+msgid "Debug"
+msgstr "调试"
+
+msgid "Disable boot"
+msgstr "禁用开机启动"
+
+msgid "Disabled"
+msgstr "已禁用"
+
+msgid "Enable"
+msgstr "启用"
+
+msgid "Enable boot"
+msgstr "启用开机启动"
+
+msgid "Enable HTTPS"
+msgstr "启用 HTTPS"
+
+msgid "Enabled"
+msgstr "已启用"
+
+msgid "Error"
+msgstr "错误"
+
+msgid "Hardware"
+msgstr "硬件"
+
+msgid "HTTP"
+msgstr "HTTP"
+
+msgid "HTTPS"
+msgstr "HTTPS"
+
+msgid "HTTPS port"
+msgstr "HTTPS 端口"
+
+msgid "Info"
+msgstr "信息"
+
+msgid "Installed"
+msgstr "已安装"
+
+msgid "Listening"
+msgstr "正在监听"
+
+msgid "Log level"
+msgstr "日志级别"
+
+msgid "Missing"
+msgstr "缺失"
+
+msgid "Not listening"
+msgstr "未监听"
+
+msgid "Private key path"
+msgstr "私钥路径"
+
+msgid "Restart"
+msgstr "重启"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Service"
+msgstr "服务"
+
+msgid "Service action completed: "
+msgstr "服务操作已完成："
+
+msgid "Service action failed: "
+msgstr "服务操作失败："
+
+msgid "Start"
+msgstr "启动"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "Trace"
+msgstr "追踪"
+
+msgid "Verbose"
+msgstr "详细"
+
+msgid "Video"
+msgstr "视频"
+
+msgid "Warn"
+msgstr "警告"
