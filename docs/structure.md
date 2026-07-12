@@ -57,6 +57,7 @@
 | `package/gostc/`、`package/easytier-core/` | 固定哈希和 ELF 属性检查的 AArch64 扩展程序。 |
 | `package/xg040g-kvm-support/` | host-only KVM-lite 辅助脚本：UVC、CH9329、PXE/rclone helper 等。 |
 | `package/xg040g-switch-management/` | DHCP 管理交换桥、IPv4LL/mDNS、LAN4 PXE 隔离、网络迁移与恢复 helper。 |
+| `package/xg040g-monitoring-defaults/` | LuCI/collectd 统计与 AN7581 温度采集默认配置。 |
 | `patches/openwrt/common/` | 两个 profile 共用的 XG-040G-MD 默认交换机/PXE 源码补丁。 |
 | `patches/luci/common/` | 两个 profile 共用的 LuCI 状态页兼容与显示修复。 |
 | `patches/*/onekvm/` | 仅完整版 profile 应用的 OpenWrt、feeds 与 LuCI 兼容补丁。 |

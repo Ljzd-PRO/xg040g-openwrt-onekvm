@@ -1,11 +1,13 @@
 # 硬件与功能验证状态
 
-更新时间：2026-07-12。
+更新时间：2026-07-13。
 
 ## 已验证
 
 - `nokia_xg-040g-md-tcboot` factory/sysupgrade 构建成功并可启动。
 - LuCI、uhttpd、Dropbear、保留配置 sysupgrade 正常。
+- LuCI Statistics、collectd CPU/内存/负载/接口统计和 AN7581 `cpu-thermal`
+  温度 RRD 已完成保留配置刷机与实机图表验证。
 - 两个 xHCI 控制器工作，系统显示四个 USB2/USB3 root hub。
 - host-only 状态下 `/sys/class/udc` 为空。
 - One-KVM 0.2.3 完整运行时、LuCI 版本状态、默认停用和 ROM 恢复均已验证。
@@ -32,7 +34,8 @@
 - Cloud PXE 从真实远程存储启动 FirPE/SystemRescue 的双网线复测。
 
 详细实测数据见 [2026-07-12 full-profile hardware validation](hardware-validation-20260712.md)
-和 [2026-07-12 WebDAV/Hyper-V PXE validation](hardware-validation-20260712-webdav-hyperv-pxe.md)。
+、[2026-07-12 WebDAV/Hyper-V PXE validation](hardware-validation-20260712-webdav-hyperv-pxe.md)
+和 [2026-07-13 monitoring validation](hardware-validation-20260713-monitoring.md)。
 
 ## 不支持
 

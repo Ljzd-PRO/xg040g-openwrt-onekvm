@@ -115,6 +115,10 @@ grep -Eq '^CONFIG_PACKAGE_xg040g-kvm-support=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-cloud-pxe=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-onekvm-runtime=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-switch-management=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_xg040g-monitoring-defaults=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_luci-app-statistics=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_luci-i18n-statistics-zh-cn=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_collectd-mod-thermal=y$' configs/onekvm.config
 grep -Eq '^CONFIG_IMAGEOPT=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PREINITOPT=y$' configs/onekvm.config
 grep -Eq '^CONFIG_TARGET_PREINIT_TIMEOUT=12$' configs/onekvm.config
@@ -153,6 +157,10 @@ for msgid in 'Start' 'Stop' 'Restart' 'Enable boot' 'Disable boot' 'Running' 'St
 	grep -Fq "msgid \"$msgid\"" package/luci-app-one-kvm/po/zh_Hans/one-kvm.po
 done
 grep -q "option port '8082'" package/xg040g-kvm-support/files/etc/config/xg040g-kvm
+grep -q "set luci_statistics.collectd_thermal.enable='1'" \
+	package/xg040g-monitoring-defaults/files/90-xg040g-monitoring
+grep -q "set luci_statistics.collectd_rrdtool.DataDir='/tmp/rrd'" \
+	package/xg040g-monitoring-defaults/files/90-xg040g-monitoring
 grep -Eq '^CONFIG_PACKAGE_libffmpeg-onekvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_kmod-usb-audio=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_ttyd=y$' configs/onekvm.config

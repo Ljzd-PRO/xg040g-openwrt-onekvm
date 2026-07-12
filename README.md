@@ -22,6 +22,7 @@ CH340/CH341 + CH9329 模拟键盘鼠标，LAN4 为独立 PXE 端口。
 - [刷机与升级](#刷机与升级)
 - [首次访问](#首次访问)
 - [使用 One-KVM](#使用-one-kvm)
+- [查看统计与温度](#查看统计与温度)
 - [使用 PXE](#使用-pxe)
 - [本地 USB 硬盘 PXE](#本地-usb-硬盘-pxe)
 - [无硬盘 Cloud PXE](#无硬盘-cloud-pxe)
@@ -37,6 +38,7 @@ CH340/CH341 + CH9329 模拟键盘鼠标，LAN4 为独立 PXE 端口。
 | LAN2、LAN3、2.5G 透明交换与 DHCP 管理 | 已实机验证 |
 | LAN4 独立 DHCP/TFTP/HTTP iPXE | 已实机验证 |
 | One-KVM 0.2.3 与 LuCI 管理包 | 已实机验证 |
+| LuCI 统计与 AN7581 CPU 温度历史 | 已实机验证 |
 | MS2109 UVC 视频与 USB Audio | 已实机验证 |
 | CH340 + CH9329 键鼠控制 | 已实机验证，默认 9600 baud |
 | H.264、H.265、VP8、VP9 | 软件编码可用，无硬件编码 |
@@ -227,6 +229,25 @@ one-kvm-codec-check
 
 GPIO、串口/HID relay 和 Wake-on-LAN 的 ATX 依赖已经包含，但不同继电器的
 电平、接线和设备节点并不通用，应按所购硬件说明在 One-KVM 中单独配置。
+
+## 查看统计与温度
+
+打开 LuCI 顶部的“统计”菜单：
+
+- “图表”显示 CPU、内存、系统负载、网络接口和温度的历史曲线。
+- “设置”可调整采样周期、启用的 collectd 插件和图表时间范围。
+- AN7581 温度来源为内核的 `cpu-thermal` thermal zone，固件默认启用采集。
+
+![LuCI 统计中的 AN7581 CPU 温度历史](docs/images/luci-statistics-temperature.png)
+
+RRD 历史默认保存在 `/tmp/rrd`，重启后会清空，避免持续写入 NAND 闪存。默认
+每 30 秒采样一次；修改前请考虑约 320 MiB 的可用内存。SSH 中可直接读取当前
+温度，数值单位为千分之一摄氏度：
+
+```sh
+cat /sys/class/thermal/thermal_zone0/type
+cat /sys/class/thermal/thermal_zone0/temp
+```
 
 ## 使用 PXE
 
