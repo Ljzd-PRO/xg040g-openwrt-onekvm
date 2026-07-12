@@ -39,8 +39,8 @@ boot || goto failed
 :systemrescue
 imgfree
 kernel ${sysrescue}/sysresccd/boot/x86_64/vmlinuz archisobasedir=systemrescue/sysresccd ip=dhcp archiso_http_srv=${root}/ checksum || goto missing
-initrd ${sysrescue}/sysresccd/boot/intel_ucode.img || goto missing
-initrd ${sysrescue}/sysresccd/boot/amd_ucode.img || goto missing
+initrd ${sysrescue}/sysresccd/boot/intel-ucode.img || goto missing
+initrd ${sysrescue}/sysresccd/boot/amd-ucode.img || goto missing
 initrd ${sysrescue}/sysresccd/boot/x86_64/sysresccd.img || goto missing
 boot || goto failed
 
