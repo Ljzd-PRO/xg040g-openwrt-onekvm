@@ -108,6 +108,19 @@ grep -Eq '^CONFIG_PREINITOPT=y$' configs/onekvm.config
 grep -Eq '^CONFIG_TARGET_PREINIT_TIMEOUT=12$' configs/onekvm.config
 grep -Eq '^PKG_LICENSE:=GPL-3.0-only$' package/xg040g-switch-management/Makefile
 grep -q "dhcp-userclass=set:kvm_ipxe,iPXE" package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
+grep -q "sha256_match=true" scripts/test-webdav.sh
+grep -q "XG040G-PXE-UEFI-VERIFY" scripts/hyperv-pxe-lab.ps1
+grep -q "XG040G-PXE-HTTP" scripts/windows-pxe-http.ps1
+grep -q "VMConnect window not found" scripts/capture-vmconnect.ps1
+grep -q "Start-VM -Name.*VmName" scripts/run-hyperv-pxe-boot.ps1
+grep -q "Register-ScheduledTask.*TaskPrefix" scripts/register-vmconnect-tools.ps1
+grep -q "wimboot/releases/download/v2.9.0/wimboot" scripts/prepare-firpe-ipxe-assets.ps1
+grep -q "cdfbe2ed2be42e15ee4832f2c73893607db2ca4c95c34df9e0b61568845b4de2" scripts/prepare-firpe-ipxe-assets.ps1
+grep -q "bin-x86_64-efi/snponly.efi" scripts/build-ipxe-embedded.sh
+grep -q "rm -f bin/embedded.o bin/undionly.kpxe" scripts/build-ipxe-embedded.sh
+grep -q "archisobasedir=systemrescue/sysresccd" docs/pxe-boot-menu.ipxe
+grep -q 'kernel.*wimboot gui index=1' docs/pxe-boot-menu.ipxe
+grep -q 'initrd -n boot.wim.*boot.wim' docs/pxe-boot-menu.ipxe
 grep -q "list interface 'pxe'" package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
 if grep -q 'tftp-interface' package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode; then
 	echo 'Unsupported dnsmasq tftp-interface option is present.' >&2

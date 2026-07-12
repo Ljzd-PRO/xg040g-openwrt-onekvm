@@ -1,0 +1,62 @@
+#!ipxe
+
+set server 10.40.0.1
+set root http://${server}:8081
+set firpe ${root}/firpe
+set sysrescue ${root}/systemrescue
+
+:menu
+menu XG-040G-MD local recovery boot
+item --gap -- ---------------- Windows PE ----------------
+item firpe_net FirPE network mode
+item firpe_offline FirPE offline mode
+item --gap -- ---------------- Linux recovery ----------------
+item systemrescue SystemRescue 13.01
+item --gap -- ---------------- Tools ----------------
+item shell iPXE shell
+item reboot Reboot
+choose --default firpe_net --timeout 10000 selected || goto shell
+goto ${selected}
+
+:firpe_net
+imgfree
+kernel ${root}/wimboot gui index=1 || goto failed
+initrd -n BCD ${firpe}/PXEBCD BCD || goto missing
+initrd -n boot.sdi ${firpe}/boot.sdi boot.sdi || goto missing
+initrd -n bootmgfw.efi ${firpe}/bootmgfw.efi bootmgfw.efi || goto missing
+initrd -n boot.wim ${firpe}/boot.wim boot.wim || goto missing
+boot || goto failed
+
+:firpe_offline
+imgfree
+kernel ${root}/wimboot gui index=2 || goto failed
+initrd -n BCD ${firpe}/PXEBCD BCD || goto missing
+initrd -n boot.sdi ${firpe}/boot.sdi boot.sdi || goto missing
+initrd -n bootmgfw.efi ${firpe}/bootmgfw.efi bootmgfw.efi || goto missing
+initrd -n boot.wim ${firpe}/boot.wim boot.wim || goto missing
+boot || goto failed
+
+:systemrescue
+imgfree
+kernel ${sysrescue}/sysresccd/boot/x86_64/vmlinuz archisobasedir=systemrescue/sysresccd ip=dhcp archiso_http_srv=${root}/ checksum || goto missing
+initrd ${sysrescue}/sysresccd/boot/intel_ucode.img || goto missing
+initrd ${sysrescue}/sysresccd/boot/amd_ucode.img || goto missing
+initrd ${sysrescue}/sysresccd/boot/x86_64/sysresccd.img || goto missing
+boot || goto failed
+
+:missing
+echo Required boot file is missing
+sleep 5
+goto menu
+
+:failed
+echo Boot failed
+sleep 5
+goto menu
+
+:shell
+shell
+goto menu
+
+:reboot
+reboot
