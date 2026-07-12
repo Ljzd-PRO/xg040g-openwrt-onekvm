@@ -28,7 +28,17 @@ done
 
 (cd "$out_dir" && sha256sum -c SHA256SUMS.local)
 
-required_packages=(luci luci-ssl dropbear uhttpd kmod-usb3)
+required_packages=(
+	luci
+	luci-ssl
+	dropbear
+	uhttpd
+	kmod-usb3
+	dnsmasq-full
+	avahi-autoipd
+	avahi-nodbus-daemon
+	xg040g-switch-management
+)
 if [[ "$profile" == "onekvm" ]]; then
 	required_packages+=(
 		one-kvm
@@ -93,6 +103,9 @@ if [[ "$profile" == "minimal" ]]; then
 	done
 fi
 
+grep -q '^CONFIG_TARGET_PREINIT_TIMEOUT=12$' "$out_dir/config.buildinfo"
+grep -q '^CONFIG_PACKAGE_xg040g-switch-management=y$' "$out_dir/config.buildinfo"
+
 for package in \
 	kmod-usb-mtu3 \
 	kmod-usb-gadget \
@@ -121,8 +134,10 @@ if [[ "$profile" == "onekvm" ]]; then
 			echo "Expected exactly one exported APK for $package, found $apk_count." >&2
 			exit 1
 		fi
-		jq -e --arg package "$package" '.packages[] | select(.name == $package)' \
-			"$out_dir/APK-METADATA.json" >/dev/null
+		grep -Fq "\"name\": \"$package\"" "$out_dir/APK-METADATA.json" || {
+			echo "APK metadata is missing $package." >&2
+			exit 1
+		}
 	done
 
 	for symbol in kmod-usb-mtu3 kmod-usb-gadget kmod-usb-gadget-hid kmod-usb-gadget-mass-storage; do

@@ -61,8 +61,14 @@ for patch_file in package/one-kvm/patches/*.patch; do
 	git -C "$tmp/one-kvm" apply "$repo_root/$patch_file"
 done
 
-git -C upstream/openwrt archive HEAD package/kernel/linux/modules/sound.mk | tar -x -C "$tmp/openwrt"
+git -C upstream/openwrt archive HEAD \
+	package/kernel/linux/modules/sound.mk \
+	target/linux/airoha/an7581/base-files/etc/board.d/02_network | tar -x -C "$tmp/openwrt"
 git -C "$tmp/openwrt" init -q
+for patch_file in patches/openwrt/common/*.patch; do
+	git -C "$tmp/openwrt" apply --check "$repo_root/$patch_file"
+	git -C "$tmp/openwrt" apply "$repo_root/$patch_file"
+done
 for patch_file in patches/openwrt/onekvm/*.patch; do
 	git -C "$tmp/openwrt" apply --check "$repo_root/$patch_file"
 	git -C "$tmp/openwrt" apply "$repo_root/$patch_file"
@@ -88,10 +94,29 @@ bash -n "$tmp/luci/applications/luci-app-package-manager/root/usr/libexec/packag
 
 [[ "$(grep -c '^src-git ' locks/feeds.conf)" == "5" ]]
 grep -Eq '^CONFIG_TARGET_airoha_an7581_DEVICE_nokia_xg-040g-md-tcboot=y$' configs/minimal.config
+grep -Eq '^CONFIG_IMAGEOPT=y$' configs/minimal.config
+grep -Eq '^CONFIG_PREINITOPT=y$' configs/minimal.config
+grep -Eq '^CONFIG_TARGET_PREINIT_TIMEOUT=12$' configs/minimal.config
+grep -Eq '^CONFIG_PACKAGE_xg040g-switch-management=y$' configs/minimal.config
 grep -Eq '^CONFIG_PACKAGE_one-kvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_luci-app-one-kvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-kvm-support=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-onekvm-runtime=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_xg040g-switch-management=y$' configs/onekvm.config
+grep -Eq '^CONFIG_IMAGEOPT=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PREINITOPT=y$' configs/onekvm.config
+grep -Eq '^CONFIG_TARGET_PREINIT_TIMEOUT=12$' configs/onekvm.config
+grep -Eq '^PKG_LICENSE:=GPL-3.0-only$' package/xg040g-switch-management/Makefile
+grep -q "dhcp-userclass=set:kvm_ipxe,iPXE" package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
+grep -q "list interface 'pxe'" package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
+if grep -q 'tftp-interface' package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode; then
+	echo 'Unsupported dnsmasq tftp-interface option is present.' >&2
+	exit 1
+fi
+grep -q "procd_set_param command /usr/sbin/uhttpd" package/xg040g-switch-management/files/etc/init.d/xg040g-pxe-http
+grep -q "args: { enabled: false }" package/luci-app-one-kvm/root/usr/share/rpcd/ucode/one-kvm.uc
+grep -q "codeValue(hwcheck.output)" package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/general.js
+grep -q "option port '8082'" package/xg040g-kvm-support/files/etc/config/xg040g-kvm
 grep -Eq '^CONFIG_PACKAGE_libffmpeg-onekvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_kmod-usb-audio=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_ttyd=y$' configs/onekvm.config

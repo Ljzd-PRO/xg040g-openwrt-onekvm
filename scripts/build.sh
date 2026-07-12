@@ -54,7 +54,7 @@ done
 case "$profile" in
 	minimal)
 		config_file="$repo_root/configs/minimal.config"
-		with_local_packages=0
+		with_local_packages=1
 		;;
 	onekvm)
 		config_file="$repo_root/configs/onekvm.config"
@@ -74,8 +74,8 @@ case "$source_mode" in
 		;;
 esac
 
-if [[ "$profile" == "onekvm" && "$source_mode" == "direct" ]]; then
-	echo "The onekvm profile applies isolated source/feed patches and requires --source-mode isolated." >&2
+if [[ "$source_mode" == "direct" ]]; then
+	echo "Both profiles apply isolated source patches and require --source-mode isolated." >&2
 	exit 1
 fi
 
@@ -86,11 +86,6 @@ case "$build_verbosity" in
 		exit 64
 		;;
 esac
-
-if [[ "$source_mode" == "direct" && "$(uname -s)" == "Darwin" ]]; then
-	echo "Direct mode is unavailable on the default case-insensitive macOS filesystem; use isolated mode." >&2
-	exit 1
-fi
 
 if ! command -v docker >/dev/null 2>&1; then
 	echo "Docker is required." >&2
@@ -235,6 +230,7 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 		done < <(find "$series_dir" -maxdepth 1 -type f -name "*.patch" | sort)
 	}
 
+	apply_patch_series /work/openwrt /project/patches/openwrt/common
 	if [[ "$PROFILE" == "onekvm" ]]; then
 		apply_patch_series /work/openwrt /project/patches/openwrt/onekvm
 	fi
@@ -402,6 +398,10 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 	prefetch_npm_native
 	cp "$CONFIG_FILE" .config
 	make defconfig
+	grep -q "^CONFIG_TARGET_PREINIT_TIMEOUT=12$" .config || {
+		echo "Failed to enforce the 12-second failsafe wait window." >&2
+		exit 1
+	}
 	cp .config /out/config.after-defconfig
 	git rev-parse HEAD > /out/source-commit.txt
 
