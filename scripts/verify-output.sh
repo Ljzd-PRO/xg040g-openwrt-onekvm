@@ -45,6 +45,7 @@ if [[ "$profile" == "onekvm" ]]; then
 		luci-app-one-kvm
 		luci-i18n-one-kvm-zh-cn
 		xg040g-kvm-support
+		xg040g-cloud-pxe
 		xg040g-onekvm-runtime
 		bash
 		ttyd

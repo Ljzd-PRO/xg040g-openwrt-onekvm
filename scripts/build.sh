@@ -322,10 +322,14 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 		find package/xg040g-local -type f -exec chmod 0644 {} +
 		find package/xg040g-local -type f -path "*/files/etc/init.d/*" -exec chmod 0755 {} +
 		find package/xg040g-local -type f -path "*/files/etc/uci-defaults/*" -exec chmod 0755 {} +
+		find package/xg040g-local -type f -path "*/files/etc/hotplug.d/*/*" -exec chmod 0755 {} +
 		find package/xg040g-local -type f -path "*/files/usr/bin/*" -exec chmod 0755 {} +
 		find package/xg040g-local -type f -path "*/files/usr/sbin/*" -exec chmod 0755 {} +
 		find package/xg040g-local -type f -path "*/root/usr/bin/*" -exec chmod 0755 {} +
 		find package/xg040g-local -type f -path "*/root/usr/sbin/*" -exec chmod 0755 {} +
+		if [[ "$PROFILE" == "onekvm" ]]; then
+			JOBS="$JOBS" bash /project/scripts/prepare-ipxe-package-assets.sh package/xg040g-local /dl
+		fi
 
 		test -n "$one_kvm_commit"
 		one_kvm_version="$(sed -n "s/^PKG_VERSION:=//p" /project/package/one-kvm/Makefile)"

@@ -25,12 +25,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     gawk \
     gcc \
+    gcc-multilib \
     gettext \
     git \
     jq \
     libclang-dev \
     libelf-dev \
     libncurses-dev \
+    liblzma-dev \
     libssl-dev \
     make \
     patch \

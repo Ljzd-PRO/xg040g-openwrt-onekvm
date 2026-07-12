@@ -48,6 +48,7 @@ while IFS= read -r -d '' script; do
 done < <(package_shell_scripts)
 
 node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/general.js
+node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/cloud-pxe.js
 jq empty package/luci-app-one-kvm/root/usr/share/luci/menu.d/luci-app-one-kvm.json
 jq empty package/luci-app-one-kvm/root/usr/share/rpcd/acl.d/luci-app-one-kvm.json
 
@@ -101,6 +102,7 @@ grep -Eq '^CONFIG_PACKAGE_xg040g-switch-management=y$' configs/minimal.config
 grep -Eq '^CONFIG_PACKAGE_one-kvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_luci-app-one-kvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-kvm-support=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_xg040g-cloud-pxe=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-onekvm-runtime=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-switch-management=y$' configs/onekvm.config
 grep -Eq '^CONFIG_IMAGEOPT=y$' configs/onekvm.config
@@ -108,6 +110,13 @@ grep -Eq '^CONFIG_PREINITOPT=y$' configs/onekvm.config
 grep -Eq '^CONFIG_TARGET_PREINIT_TIMEOUT=12$' configs/onekvm.config
 grep -Eq '^PKG_LICENSE:=GPL-3.0-only$' package/xg040g-switch-management/Makefile
 grep -q "dhcp-userclass=set:kvm_ipxe,iPXE" package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
+grep -q 'boot-select.ipxe' package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
+grep -q "dest_port '8083'" package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
+grep -q -- '--read-only' package/xg040g-cloud-pxe/files/etc/init.d/xg040g-cloud-pxe
+grep -q -- '--vfs-cache-mode off' package/xg040g-cloud-pxe/files/etc/init.d/xg040g-cloud-pxe
+grep -q "commit='6ba010eaada9c089c92804969f9181d88d7ccc7c'" scripts/prepare-ipxe-package-assets.sh
+grep -q "efi_hash='4437f1fa12b365f3f85dd227a791db9b4ebed1ac0aa41eec832113af54cf4a77'" scripts/prepare-ipxe-package-assets.sh
+grep -q "bios_hash='f94fe30630b89a647eb550a747e9390fe2f9d7463f29279ab958c689f99f6229'" scripts/prepare-ipxe-package-assets.sh
 grep -q "sha256_match=true" scripts/test-webdav.sh
 grep -q "XG040G-PXE-UEFI-VERIFY" scripts/hyperv-pxe-lab.ps1
 grep -q "XG040G-PXE-HTTP" scripts/windows-pxe-http.ps1
