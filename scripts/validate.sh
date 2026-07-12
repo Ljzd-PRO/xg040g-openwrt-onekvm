@@ -114,6 +114,7 @@ grep -q 'boot-select.ipxe' package/xg040g-switch-management/files/usr/sbin/xg040
 grep -q "dest_port '8083'" package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
 grep -q -- '--read-only' package/xg040g-cloud-pxe/files/etc/init.d/xg040g-cloud-pxe
 grep -q -- '--vfs-cache-mode off' package/xg040g-cloud-pxe/files/etc/init.d/xg040g-cloud-pxe
+grep -q 'hexdump -v' package/xg040g-cloud-pxe/files/usr/sbin/xg040g-cloud-pxe
 grep -q "commit='6ba010eaada9c089c92804969f9181d88d7ccc7c'" scripts/prepare-ipxe-package-assets.sh
 grep -q "efi_hash='4437f1fa12b365f3f85dd227a791db9b4ebed1ac0aa41eec832113af54cf4a77'" scripts/prepare-ipxe-package-assets.sh
 grep -q "bios_hash='f94fe30630b89a647eb550a747e9390fe2f9d7463f29279ab958c689f99f6229'" scripts/prepare-ipxe-package-assets.sh

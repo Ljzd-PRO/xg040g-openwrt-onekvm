@@ -13,7 +13,7 @@ validate_remote_path() {
 	value="$1"
 	[ -n "$value" ] || fail 'remote_path_required' 64
 	[ "${#value}" -le 1024 ] || fail 'remote_path_too_long' 64
-	printf '%s' "$value" | od -An -tu1 | grep -Eq '(^| )(0|10|13)( |$)' && fail 'remote_path_invalid_characters' 64
+	printf '%s' "$value" | hexdump -v -e '1/1 "%u\n"' | grep -Eq '^(0|10|13)$' && fail 'remote_path_invalid_characters' 64
 	case "$value" in :*) fail 'inline_remote_forbidden' 64 ;; esac
 	remote="${value%%:*}"
 	if [ "$remote" = "$value" ] || [ -z "$remote" ]; then
