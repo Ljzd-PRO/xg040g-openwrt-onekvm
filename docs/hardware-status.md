@@ -22,11 +22,14 @@
   iPXE 菜单。
 - PXE 默认隔离已从 SystemRescue 实测：本地启动 HTTP 可达，设备管理端口
   和上游网络不可达。
+- Cloud PXE LuCI RPC、只读 rclone HTTP 8083、selector 切换及清除恢复已完成
+  实机闭环；见 [Cloud PXE firmware validation](hardware-validation-20260712-cloud-pxe.md)。
 
 ## 已延期或等待外部条件
 
 - USB3 外置盘 `KVMSTORE` 的 5 Gbit/s 链路、自动挂载与持续读写。
 - 实体 ATX 继电器后端。
+- Cloud PXE 从真实远程存储启动 FirPE/SystemRescue 的双网线复测。
 
 详细实测数据见 [2026-07-12 full-profile hardware validation](hardware-validation-20260712.md)
 和 [2026-07-12 WebDAV/Hyper-V PXE validation](hardware-validation-20260712-webdav-hyperv-pxe.md)。
