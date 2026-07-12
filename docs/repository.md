@@ -108,5 +108,5 @@ git tag vYYYY.MM.DD-rc1
 git push origin vYYYY.MM.DD-rc1
 ```
 
-Keep releases as prerelease until MS2109, CH9329, USB3 `KVMSTORE`, PXE and
-rclone/WebDAV have all been validated on hardware.
+Keep releases as prerelease until USB3 `KVMSTORE` has been validated on
+hardware.

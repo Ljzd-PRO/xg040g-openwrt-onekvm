@@ -92,5 +92,6 @@ The manifest contains `xg040g-switch-management 1.0.0-r2`,
 - Physical 2.5G link negotiation and cross-port throughput.
 - Physical OpenWrt failsafe entry and tcboot Web U-Boot recovery.
 
-The release should remain a prerelease until the storage, physical PXE, and
-real cloud-remote checks are complete.
+The WebDAV and Hyper-V UEFI/BIOS PXE items were subsequently closed in
+`hardware-validation-20260712-webdav-hyperv-pxe.md`. USB3 KVMSTORE remains the
+release-blocking hardware item.

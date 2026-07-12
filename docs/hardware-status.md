@@ -15,15 +15,21 @@
 - PXE 独立网络、dnsmasq TFTP 与 uhttpd HTTP 文件传输已验证。
 - rclone 本地 remote fixture 已验证 dry-run、缓存刷新和断源保留行为。
 - 无 rclone 配置时 helper 能以明确错误退出，不影响本地 PXE 内容。
+- 123 云盘 WebDAV 已通过 rclone 目录、上传、回读 SHA256、删除、1 GiB
+  FirPE 下载以及 WinFsp 挂载读取测试。
+- Hyper-V Generation 2 已经通过 LAN4 完成 DHCP、TFTP、iPXE、FirPE 网络
+  与离线模式、SystemRescue root shell 全链路；Generation 1 已进入同一
+  iPXE 菜单。
+- PXE 默认隔离已从 SystemRescue 实测：本地启动 HTTP 可达，设备管理端口
+  和上游网络不可达。
 
 ## 已延期或等待外部条件
 
 - USB3 外置盘 `KVMSTORE` 的 5 Gbit/s 链路、自动挂载与持续读写。
-- 物理 PXE 客户端的 DHCP、iPXE 执行和系统启动。
-- 真实 WebDAV/rclone remote 的鉴权和同步。
 - 实体 ATX 继电器后端。
 
-详细实测数据见 [2026-07-12 full-profile hardware validation](hardware-validation-20260712.md)。
+详细实测数据见 [2026-07-12 full-profile hardware validation](hardware-validation-20260712.md)
+和 [2026-07-12 WebDAV/Hyper-V PXE validation](hardware-validation-20260712-webdav-hyperv-pxe.md)。
 
 ## 不支持
 

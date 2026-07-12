@@ -39,7 +39,8 @@
 
 - [x] MS2109 视频闭环。
 - [x] CH9329 键鼠闭环。
-- [ ] USB3 KVMSTORE 与 PXE 闭环。
-- [ ] rclone/WebDAV 同步闭环。
+- [ ] USB3 KVMSTORE 闭环。
+- [x] LAN4 PXE UEFI/BIOS、FirPE 与 SystemRescue 启动闭环。
+- [x] rclone/WebDAV 真实读写、完整下载与挂载读取闭环。
 
 硬件闭环未全部完成时，Release 必须保持 prerelease。

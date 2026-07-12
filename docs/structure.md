@@ -39,6 +39,9 @@
 | `scripts/verify-output.sh` | 检查构建产物、manifest 必需包和禁止包。 |
 | `scripts/package-release.sh` | 把 build output 规范化成 Release asset 名称。 |
 | `scripts/create-source-bundle.sh` | 生成包含 submodule 内容的源码归档。 |
+| `scripts/hyperv-pxe-lab.ps1` | 创建、检查或清理隔离的 Hyper-V PXE 验证环境。 |
+| `scripts/prepare-firpe-ipxe-assets.ps1` | 获取并校验固定版本的 wimboot 与 PXEBCD。 |
+| `scripts/build-ipxe-embedded.sh` | 构建带固定 chain 脚本的 UEFI/BIOS iPXE。 |
 
 ## 本地包布局
 

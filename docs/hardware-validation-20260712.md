@@ -86,6 +86,7 @@ still checked.
 - Authentication and transfer against a real WebDAV account.
 - Physical ATX relay backends.
 
-The deferred checks do not affect the completed MS2109 or CH9329 closures. A
-release should remain a prerelease until the remaining storage, boot-client, and
-real cloud-remote checks are complete.
+The deferred checks do not affect the completed MS2109 or CH9329 closures.
+WebDAV and Hyper-V UEFI/BIOS PXE were subsequently closed in
+`hardware-validation-20260712-webdav-hyperv-pxe.md`; USB3 KVMSTORE remains
+deferred.

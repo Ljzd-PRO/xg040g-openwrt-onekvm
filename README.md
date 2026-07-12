@@ -17,11 +17,14 @@ rclone/WebDAV 缓存提供。AN7581 UDC/OTG 不在受支持功能中。
 | MTU3/UDC gadget endpoint | 不支持，实验结果为零 endpoint |
 | MS2109 视频与 USB 音频采集 | 已验证 |
 | CH340 + CH9329 键鼠控制 | 已验证，默认 9600 baud |
+| rclone/WebDAV 真实读写、下载与 WinFsp 挂载 | 已验证 |
+| Hyper-V LAN4 PXE | 已验证：UEFI/BIOS、FirPE 两种模式、SystemRescue |
 | USB3 `KVMSTORE` 外置盘 | 实机验证已延期 |
 
-在 USB3 `KVMSTORE`、物理 PXE 客户端和真实 WebDAV remote 完成闭环前，
+在 USB3 `KVMSTORE` 完成闭环前，
 自动发布的固件均标记为 prerelease。当前实测记录见
 [2026-07-12 full-profile hardware validation](docs/hardware-validation-20260712.md)
+、[2026-07-12 WebDAV/Hyper-V PXE validation](docs/hardware-validation-20260712-webdav-hyperv-pxe.md)
 和 [2026-07-13 network/recovery validation](docs/hardware-validation-20260713-network-recovery.md)。
 
 ## 固件配置
