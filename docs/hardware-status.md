@@ -17,11 +17,13 @@
 - CH340 + CH9329 `V3.8` 在 9600 baud 下完成键盘 LED 往返和相对鼠标测试。
 - H.264、H.265、VP8、VP9 软件编码器均完成 720p 单帧烟测。
 - PXE 独立网络、dnsmasq TFTP 与 uhttpd HTTP 文件传输已验证。
+- 默认四口交换机和持久化 PXE 端口选择已验证；LAN3、LAN4、2.5G 均完成
+  运行态切换，LAN4 完成重启持久化，`none` 可恢复四口 `br-lan`。
 - rclone 本地 remote fixture 已验证 dry-run、缓存刷新和断源保留行为。
 - 无 rclone 配置时 helper 能以明确错误退出，不影响本地 PXE 内容。
 - 123 云盘 WebDAV 已通过 rclone 目录、上传、回读 SHA256、删除、1 GiB
   FirPE 下载以及 WinFsp 挂载读取测试。
-- Hyper-V Generation 2 已经通过 LAN4 完成 DHCP、TFTP、iPXE、FirPE 网络
+- 旧固定 LAN4 拓扑下，Hyper-V Generation 2 已经完成 DHCP、TFTP、iPXE、FirPE 网络
   与离线模式、SystemRescue root shell 全链路；Generation 1 已进入同一
   iPXE 菜单。
 - PXE 默认隔离已从 SystemRescue 实测：本地启动 HTTP 可达，设备管理端口
@@ -39,7 +41,8 @@
 、[2026-07-12 WebDAV/Hyper-V PXE validation](hardware-validation-20260712-webdav-hyperv-pxe.md)
 和 [2026-07-13 monitoring validation](hardware-validation-20260713-monitoring.md)。
 FRPC 独立管理的本轮结果见
-[2026-07-13 FRPC validation](hardware-validation-20260713-frpc.md)。
+[2026-07-13 FRPC validation](hardware-validation-20260713-frpc.md)。持久化 PXE
+端口切换见 [2026-07-13 PXE port v2 validation](hardware-validation-20260713-pxe-port-v2.md)。
 
 ## 不支持
 

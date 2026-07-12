@@ -32,9 +32,14 @@
 - [x] 无硬件启动烟测 RSS 小于 100 MiB，`MemAvailable` 不低于 64 MiB。
 - [ ] 不同签名的无害 APK 可经 LuCI 本地上传安装，URL 安装策略未放宽。
 - [x] 制造可逆 overlay 覆盖后，LuCI 恢复得到与 ROM 相同的 SHA256 和服务状态。
-- [x] LAN2/LAN3/2.5G 组成 `br-lan`，正常系统无 WAN，failsafe 窗口为 12 秒。
+- [x] 默认 LAN2/LAN3/LAN4/2.5G 全部组成 `br-lan`，正常系统无 WAN，failsafe
+  窗口为 12 秒。
 - [x] 上游 DHCP、稳定 `.local` 与 15 秒 IPv4LL 后备均已闭环。
-- [x] LAN4 PXE 服务仅绑定 `br-pxe`，默认隔离及可选单向 NAT 均已闭环。
+- [x] 默认四口全部属于 `br-lan`，未创建 `br-pxe` 且不提供 PXE DHCP。
+- [x] 五种 PXE 端口配置通过自动化拓扑测试，单口隔离及可选单向 NAT 配置正确。
+- [x] LAN4、LAN3、2.5G 的运行态切换、`none` 恢复、LAN4 重启持久化及 LuCI
+  确认/取消流程已实机验证。
+- [x] PXE 启用时 mDNS 只发布到 `br-lan`，不在 `br-pxe` 发布管理入口。
 - [x] One-KVM 数据重置的取消、确认、目录保护与服务状态恢复均已验证。
 
 ## Hardware promotion
@@ -42,7 +47,8 @@
 - [x] MS2109 视频闭环。
 - [x] CH9329 键鼠闭环。
 - [ ] USB3 KVMSTORE 闭环。
-- [x] LAN4 PXE UEFI/BIOS、FirPE 与 SystemRescue 启动闭环。
+- [ ] 动态选择的 PXE 端口完成 UEFI/BIOS、FirPE 与 SystemRescue 再验证；旧固定
+  LAN4 固件上的启动链路已经闭环。
 - [x] rclone/WebDAV 真实读写、完整下载与挂载读取闭环。
 
 硬件闭环未全部完成时，Release 必须保持 prerelease。

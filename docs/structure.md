@@ -42,6 +42,7 @@
 | `scripts/hyperv-pxe-lab.ps1` | 创建、检查或清理隔离的 Hyper-V PXE 验证环境。 |
 | `scripts/prepare-firpe-ipxe-assets.ps1` | 获取并校验固定版本的 wimboot 与 PXEBCD。 |
 | `scripts/build-ipxe-embedded.sh` | 构建带固定 chain 脚本的 UEFI/BIOS iPXE。 |
+| `scripts/test-pxe-port-topology.sh` | 验证关闭 PXE 及四个单口选择的桥、DHCP 与防火墙拓扑。 |
 
 ## 本地包布局
 
@@ -56,7 +57,7 @@
 | `package/libyuv/`、`package/libx265/` | 固定版本的本地多媒体依赖。 |
 | `package/gostc/`、`package/easytier-core/` | 固定哈希和 ELF 属性检查的 AArch64 扩展程序。 |
 | `package/xg040g-kvm-support/` | host-only KVM-lite 辅助脚本：UVC、CH9329、PXE/rclone helper 等。 |
-| `package/xg040g-switch-management/` | DHCP 管理交换桥、IPv4LL/mDNS、LAN4 PXE 隔离、网络迁移与恢复 helper。 |
+| `package/xg040g-switch-management/` | DHCP 管理交换桥、IPv4LL/mDNS、持久化 PXE 端口选择、网络迁移与恢复 helper。 |
 | `package/xg040g-monitoring-defaults/` | LuCI/collectd 统计与 AN7581 温度采集默认配置。 |
 | `patches/openwrt/common/` | 两个 profile 共用的 XG-040G-MD 默认交换机/PXE 源码补丁。 |
 | `patches/luci/common/` | 两个 profile 共用的 LuCI 状态页兼容与显示修复。 |

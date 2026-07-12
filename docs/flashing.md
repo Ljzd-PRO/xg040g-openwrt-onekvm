@@ -25,7 +25,7 @@ sysupgrade /tmp/xg040g-onekvm-sysupgrade.bin
 
 默认不使用 `-n`，以保留密码、One-KVM 数据和其他应用配置。新网络 schema
 首次启动时会备份并强制替换旧的 `network`、`dhcp` 和 `firewall`，因此升级前
-应让接入 LAN2/LAN3/2.5G 的管理主机准备 DHCP 或 IPv4LL。升级期间不要刷新
+应让接入 LAN2/LAN3/LAN4/2.5G 的管理主机准备 DHCP 或 IPv4LL。升级期间不要刷新
 页面；设备通常需要约两到三分钟恢复网络。
 
 升级后优先从上游 DHCP 租约查找设备，或访问
