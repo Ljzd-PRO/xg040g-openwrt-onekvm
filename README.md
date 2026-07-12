@@ -34,6 +34,10 @@ rclone/WebDAV 缓存提供。AN7581 UDC/OTG 不在受支持功能中。
   USB3 存储、PXE/iPXE、rclone/WebDAV，以及 ttyd、GOSTC、EasyTier、FRPC、
   USB 音频、四种软件编码器和 ATX 后端依赖。
 
+完整版也可在没有 USB 硬盘时使用独立的只读 `rclone serve http` 数据面，
+让 LAN4 iPXE 直接读取任意 rclone 远程存储。配置方法与远程目录约定见
+[无 USB 存储的 Cloud PXE](docs/cloud-pxe.md)。
+
 两种配置均为 host-only，不包含 `kmod-usb-mtu3` 或 USB gadget 包。
 AN7581 没有可用的硬件视频编码路径；完整版只提供 H.264、H.265、VP8、VP9
 软件编码，实际实时分辨率和帧率受约 320 MiB 内存及 Cortex-A53 CPU 限制。
