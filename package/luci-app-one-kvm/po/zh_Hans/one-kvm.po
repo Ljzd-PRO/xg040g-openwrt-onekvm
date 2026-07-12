@@ -173,3 +173,63 @@ msgstr "One-KVM 数据已重置，请重新完成初始化后再使用。"
 
 msgid "One-KVM data reset failed."
 msgstr "One-KVM 数据重置失败。"
+
+msgid "General"
+msgstr "常规"
+
+msgid "Cloud PXE"
+msgstr "云端 PXE"
+
+msgid "Serve boot files directly from any rclone remote over a read-only HTTP data plane. LAN4 remains isolated and no USB disk is required."
+msgstr "通过只读 HTTP 数据面直接提供任意 rclone 远程存储中的启动文件。LAN4 仍保持隔离，且无需 USB 硬盘。"
+
+msgid "Data plane"
+msgstr "数据面"
+
+msgid "Enable Cloud PXE"
+msgstr "启用云端 PXE"
+
+msgid "Active remote path"
+msgstr "活动远程路径"
+
+msgid "Use a named rclone remote followed by a path. Inline remotes are rejected."
+msgstr "填写具名 rclone remote 及其路径；不允许 inline remote。"
+
+msgid "rclone configuration"
+msgstr "rclone 配置"
+
+msgid "Paste standard rclone INI configuration. Multiple remote sections are supported; maximum size is 64 KiB."
+msgstr "粘贴标准 rclone INI 配置。支持多个 remote，最大 64 KiB。"
+
+msgid "Test unsaved configuration"
+msgstr "测试未保存配置"
+
+msgid "Save & Apply"
+msgstr "保存并应用"
+
+msgid "Clear configuration"
+msgstr "清除配置"
+
+msgid "Clear Cloud PXE configuration"
+msgstr "清除云端 PXE 配置"
+
+msgid "This stops Cloud PXE and permanently removes the saved rclone configuration, including credentials. Local KVMSTORE files are not deleted."
+msgstr "这会停止云端 PXE，并永久删除已保存的 rclone 配置及凭据。本地 KVMSTORE 文件不会被删除。"
+
+msgid "Remote test succeeded."
+msgstr "远程存储测试成功。"
+
+msgid "Remote test failed."
+msgstr "远程存储测试失败。"
+
+msgid "Cloud PXE configuration saved."
+msgstr "云端 PXE 配置已保存。"
+
+msgid "Failed to save Cloud PXE configuration."
+msgstr "保存云端 PXE 配置失败。"
+
+msgid "Cloud PXE configuration cleared."
+msgstr "云端 PXE 配置已清除。"
+
+msgid "Failed to clear Cloud PXE configuration."
+msgstr "清除云端 PXE 配置失败。"

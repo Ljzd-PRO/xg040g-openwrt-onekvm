@@ -1,7 +1,7 @@
 #!/usr/bin/env ucode
 'use strict';
 
-import { popen, access } from 'fs';
+import { popen, access, readfile, writefile, unlink } from 'fs';
 import { init_enabled, init_action } from 'luci.sys';
 
 function shellquote(s) {
@@ -52,6 +52,32 @@ function validPort(value) {
 
 	let port = int(value);
 	return port >= 1 && port <= 65535 ? '' + port : '8080';
+}
+
+function cloudPxeCall(action, config, remotePath, enabled) {
+	let temp = null;
+	if (config != null) {
+		if (type(config) != 'string' || length(config) > 65536)
+			return { success: false, error: 'config_too_large' };
+		temp = execCommand('mktemp /tmp/xg040g-cloud-pxe-rpc.XXXXXX');
+		if (!temp)
+			return { success: false, error: 'temporary_file_failed' };
+		writefile(temp, config);
+		execCommand('chmod 0600 ' + shellquote(temp));
+	}
+
+	let cmd = '/usr/sbin/xg040g-cloud-pxe ' + action;
+	if (config != null)
+		cmd += ' ' + shellquote(temp) + ' ' + shellquote(remotePath || '');
+	if (action == 'save')
+		cmd += ' ' + (enabled ? '1' : '0');
+	let output = execCommand(cmd + ' 2>&1');
+	if (temp != null)
+		unlink(temp);
+	return {
+		success: output != null && match(output, /(VALID|SAVED|CLEARED)=1/) != null,
+		output: output
+	};
 }
 
 const methods = {
@@ -176,6 +202,59 @@ const methods = {
 				enabled: state == '1',
 				output: output
 			};
+		}
+	},
+
+	get_cloud_pxe: {
+		call: function() {
+			let enabled = execCommand("uci -q get xg040g-kvm.cloud_pxe.enabled || echo 0");
+			let remotePath = execCommand("uci -q get xg040g-kvm.cloud_pxe.remote_path || true");
+			let running = execCommand("netstat -ltn 2>/dev/null | grep -Fq '10.40.0.1:8083' && echo 1 || echo 0");
+			return {
+				enabled: enabled == '1',
+				running: running == '1',
+				remote_path: remotePath || '',
+				config: readfile('/etc/xg040g/rclone.conf') || '',
+				address: 'http://10.40.0.1:8083'
+			};
+		}
+	},
+
+	test_cloud_pxe_config: {
+		args: { config: 'config', remote_path: 'remote_path' },
+		call: function(req) {
+			let args = req && req.args ? req.args : {};
+			return cloudPxeCall('test', args.config, args.remote_path, false);
+		}
+	},
+
+	save_cloud_pxe: {
+		args: { config: 'config', remote_path: 'remote_path', enabled: false },
+		call: function(req) {
+			let args = req && req.args ? req.args : {};
+			return cloudPxeCall('save', args.config, args.remote_path, args.enabled === true || args.enabled == 1);
+		}
+	},
+
+	cloud_pxe_action: {
+		args: { action: 'action' },
+		call: function(req) {
+			let action = req && req.args ? req.args.action : '';
+			if (index(['start', 'stop', 'restart'], action) < 0)
+				return { success: false, error: 'invalid_action' };
+			let result = init_action('xg040g-cloud-pxe', action);
+			return { success: result === 0, action: action, exit_code: result };
+		}
+	},
+
+	clear_cloud_pxe: {
+		args: { confirm: 'confirm' },
+		call: function(req) {
+			let confirm = req && req.args ? req.args.confirm : '';
+			if (confirm != 'CLEAR')
+				return { success: false, error: 'confirmation_required' };
+			let output = execCommand('/usr/sbin/xg040g-cloud-pxe clear CLEAR 2>&1');
+			return { success: output != null && match(output, /CLEARED=1/) != null, output: output };
 		}
 	},
 

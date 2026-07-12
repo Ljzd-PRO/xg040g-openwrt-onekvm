@@ -3,14 +3,16 @@
 		"description": "Grant access to One-KVM configuration",
 		"read": {
 			"uci": [
-				"one-kvm"
+				"one-kvm",
+				"xg040g-kvm"
 			],
 			"ubus": {
 				"luci.one-kvm": [
 					"get_status",
 					"get_version",
 					"get_versions",
-					"get_hwcheck"
+					"get_hwcheck",
+					"get_cloud_pxe"
 				],
 				"file": [
 					"exec",
@@ -37,14 +39,19 @@
 		},
 		"write": {
 			"uci": [
-				"one-kvm"
+				"one-kvm",
+				"xg040g-kvm"
 			],
 			"ubus": {
 				"luci.one-kvm": [
 					"service_action",
 					"restore_firmware_binary",
 					"set_pxe_uplink",
-					"reset_data"
+					"reset_data",
+					"test_cloud_pxe_config",
+					"save_cloud_pxe",
+					"cloud_pxe_action",
+					"clear_cloud_pxe"
 				]
 			},
 			"file": {
@@ -73,6 +80,9 @@
 					"exec"
 				],
 				"/usr/sbin/xg040g-pxe-uplink": [
+					"exec"
+				],
+				"/usr/sbin/xg040g-cloud-pxe": [
 					"exec"
 				]
 			}

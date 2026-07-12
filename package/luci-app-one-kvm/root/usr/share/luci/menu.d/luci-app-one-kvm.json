@@ -3,8 +3,7 @@
 		"title": "One-KVM",
 		"order": 61,
 		"action": {
-			"type": "view",
-			"path": "one-kvm/general"
+			"type": "firstchild"
 		},
 		"depends": {
 			"acl": [
@@ -14,5 +13,15 @@
 				"one-kvm": true
 			}
 		}
+	},
+	"admin/services/one-kvm/general": {
+		"title": "General",
+		"order": 10,
+		"action": { "type": "view", "path": "one-kvm/general" }
+	},
+	"admin/services/one-kvm/cloud-pxe": {
+		"title": "Cloud PXE",
+		"order": 20,
+		"action": { "type": "view", "path": "one-kvm/cloud-pxe" }
 	}
 }
