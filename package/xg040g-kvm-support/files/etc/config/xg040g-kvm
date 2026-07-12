@@ -2,5 +2,4 @@ config stream 'stream'
 	option enabled '0'
 	option device '/dev/video0'
 	option bind_address '0.0.0.0'
-	option port '8081'
-
+	option port '8082'

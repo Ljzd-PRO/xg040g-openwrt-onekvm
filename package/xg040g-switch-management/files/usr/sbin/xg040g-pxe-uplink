@@ -1,0 +1,52 @@
+#!/bin/sh
+set -u
+
+usage() {
+	echo "Usage: xg040g-pxe-uplink [status|enable|disable|sync] [--no-reload]"
+}
+
+reload=1
+for arg in "$@"; do
+	[ "$arg" = '--no-reload' ] && reload=0
+done
+
+apply_state() {
+	state="$(uci -q get xg040g-management.pxe.allow_uplink || echo 0)"
+	uci -q delete firewall.pxe_uplink
+	uci -q delete firewall.lan.masq
+
+	if [ "$state" = '1' ]; then
+		uci set firewall.lan.masq='1'
+		uci set firewall.pxe_uplink='forwarding'
+		uci set firewall.pxe_uplink.src='pxe'
+		uci set firewall.pxe_uplink.dest='lan'
+	fi
+
+	uci commit firewall
+	[ "$reload" = '1' ] && /etc/init.d/firewall restart >/dev/null 2>&1
+}
+
+cmd="${1:-status}"
+case "$cmd" in
+	status)
+		state="$(uci -q get xg040g-management.pxe.allow_uplink || echo 0)"
+		echo "PXE_UPLINK=$state"
+		;;
+	enable)
+		uci set xg040g-management.pxe.allow_uplink='1'
+		uci commit xg040g-management
+		apply_state
+		;;
+	disable)
+		uci set xg040g-management.pxe.allow_uplink='0'
+		uci commit xg040g-management
+		apply_state
+		;;
+	sync)
+		apply_state
+		;;
+	*)
+		usage >&2
+		exit 64
+		;;
+esac

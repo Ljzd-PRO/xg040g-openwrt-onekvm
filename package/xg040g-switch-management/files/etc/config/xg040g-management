@@ -1,0 +1,8 @@
+config core 'main'
+	option schema_version '0'
+	option autoip_grace '15'
+	option management_mac ''
+	option hostname ''
+
+config pxe 'pxe'
+	option allow_uplink '0'

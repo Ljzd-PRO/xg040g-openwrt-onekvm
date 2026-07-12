@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=xg040g-kvm-support
 PKG_VERSION:=0.1.0
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_MAINTAINER:=XG-040G-MD OpenWrt One-KVM contributors
 PKG_LICENSE:=GPL-3.0-only
@@ -19,13 +19,14 @@ define Package/xg040g-kvm-support
 	+kmod-scsi-core +kmod-usb-serial +kmod-usb-serial-ch341 \
 	+kmod-usb-storage +kmod-usb-storage-uas +kmod-usb3 +kmod-video-uvc \
 	+parted +picocom +rclone +rclone-config +smartmontools +usbutils \
-	+ustreamer +v4l-utils +wget-ssl
+	+ustreamer +v4l-utils +wget-ssl +xg040g-switch-management
 endef
 
 define Package/xg040g-kvm-support/description
   Runtime helpers for CH9329 serial HID discovery, optional ustreamer
   diagnostics, USB3 KVMSTORE mounting, PXE/iPXE setup and rclone cloud sync.
-  Network changes are never applied automatically during package installation.
+  LAN4 PXE networking is owned by xg040g-switch-management; this package only
+  prepares storage, boot content and One-KVM hardware helpers.
 endef
 
 define Package/xg040g-kvm-support/conffiles

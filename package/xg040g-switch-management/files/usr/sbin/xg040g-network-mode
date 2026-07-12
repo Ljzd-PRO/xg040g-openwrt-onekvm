@@ -1,0 +1,297 @@
+#!/bin/sh
+set -eu
+
+BACKUP_DIR='/etc/xg040g-network-backup'
+STORE='/mnt/kvmstore'
+SCHEMA_VERSION='1'
+
+usage() {
+	echo "Usage: xg040g-network-mode status"
+	echo "       xg040g-network-mode apply-default --force [--no-reload]"
+}
+
+valid_global_mac() {
+	mac="$1"
+	echo "$mac" | grep -Eq '^[0-9a-f]{2}(:[0-9a-f]{2}){5}$' || return 1
+	case "$mac" in
+		00:00:00:00:00:00|ff:ff:ff:ff:ff:ff|02:00:11:22:33:44) return 1 ;;
+	esac
+	first="${mac%%:*}"
+	[ $((0x$first & 3)) -eq 0 ]
+}
+
+valid_persisted_mac() {
+	mac="$1"
+	echo "$mac" | grep -Eq '^[0-9a-f]{2}(:[0-9a-f]{2}){5}$' || return 1
+	case "$mac" in
+		00:00:00:00:00:00|ff:ff:ff:ff:ff:ff|02:00:11:22:33:44) return 1 ;;
+	esac
+	first="${mac%%:*}"
+	[ $((0x$first & 1)) -eq 0 ]
+}
+
+generate_local_mac() {
+	random="$(hexdump -n 5 -e '5/1 ":%02x"' /dev/urandom)"
+	echo "02$random"
+}
+
+select_identity() {
+	mac="$(uci -q get xg040g-management.main.management_mac || true)"
+	mac="$(echo "$mac" | tr 'A-F' 'a-f')"
+	if ! valid_persisted_mac "$mac"; then
+		mac="$(fw_printenv -n ethaddr 2>/dev/null | head -n1 | tr 'A-F' 'a-f' || true)"
+		valid_global_mac "$mac" || mac=''
+	fi
+	if [ -z "$mac" ] && [ -r /sys/class/net/eth1/address ]; then
+		mac="$(tr 'A-F' 'a-f' < /sys/class/net/eth1/address)"
+		valid_global_mac "$mac" || mac=''
+	fi
+	[ -n "$mac" ] || mac="$(generate_local_mac)"
+
+	suffix="$(echo "$mac" | tr -d ':' | tail -c 7)"
+	hostname="xg040g-$suffix"
+	uci set xg040g-management.main.management_mac="$mac"
+	uci set xg040g-management.main.hostname="$hostname"
+	uci set system.@system[0].hostname="$hostname"
+	uci commit system
+	uci commit xg040g-management
+}
+
+backup_configs() {
+	rm -rf "$BACKUP_DIR"
+	mkdir -p "$BACKUP_DIR"
+	chmod 0700 "$BACKUP_DIR"
+	for config in network dhcp firewall; do
+		[ -f "/etc/config/$config" ] && cp "/etc/config/$config" "$BACKUP_DIR/$config"
+	done
+}
+
+write_network() {
+	mac="$(uci -q get xg040g-management.main.management_mac)"
+	hostname="$(uci -q get xg040g-management.main.hostname)"
+	cat > /etc/config/network <<EOF
+config interface 'loopback'
+	option device 'lo'
+	option proto 'static'
+	list ipaddr '127.0.0.1/8'
+
+config globals 'globals'
+	option ula_prefix 'auto'
+	option dhcp_default_duid 'auto'
+
+config device 'br_lan'
+	option name 'br-lan'
+	option type 'bridge'
+	option stp '0'
+	option macaddr '$mac'
+	list ports 'lan2'
+	list ports 'lan3'
+	list ports 'eth1'
+
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'dhcp'
+	option hostname '$hostname'
+
+config interface 'lan6'
+	option device 'br-lan'
+	option proto 'dhcpv6'
+	option reqaddress 'try'
+	option reqprefix 'no'
+
+config interface 'lan_autoip'
+	option device 'br-lan'
+	option proto 'autoip'
+	option auto '0'
+
+config device 'br_pxe'
+	option name 'br-pxe'
+	option type 'bridge'
+	option stp '0'
+	list ports 'lan4'
+
+config interface 'pxe'
+	option device 'br-pxe'
+	option proto 'static'
+	list ipaddr '10.40.0.1/24'
+EOF
+	chmod 0600 /etc/config/network
+}
+
+write_dhcp() {
+	mkdir -p /etc/dnsmasq.d "$STORE/tftp" "$STORE/netboot"
+	cat > /etc/config/dhcp <<'EOF'
+config dnsmasq
+	option domainneeded '1'
+	option boguspriv '1'
+	option localise_queries '1'
+	option rebind_protection '1'
+	option local '/lan/'
+	option domain 'lan'
+	option expandhosts '1'
+	option authoritative '1'
+	option readethers '1'
+	option leasefile '/tmp/dhcp.leases'
+	option resolvfile '/tmp/resolv.conf.d/resolv.conf.auto'
+	option nonwildcard '1'
+	option localservice '1'
+	option confdir '/etc/dnsmasq.d'
+	option enable_tftp '1'
+	option tftp_root '/mnt/kvmstore/tftp'
+	option tftp_no_fail '1'
+	list interface 'pxe'
+
+config dhcp 'lan'
+	option interface 'lan'
+	option ignore '1'
+	option dhcpv4 'disabled'
+	option dhcpv6 'disabled'
+	option ra 'disabled'
+
+config dhcp 'pxe'
+	option interface 'pxe'
+	option start '100'
+	option limit '101'
+	option leasetime '12h'
+	option dhcpv4 'server'
+	option dhcpv6 'disabled'
+	option ra 'disabled'
+
+config odhcpd 'odhcpd'
+	option maindhcp '0'
+	option leasefile '/tmp/odhcpd.leases'
+	option leasetrigger '/usr/sbin/odhcpd-update'
+	option loglevel '4'
+EOF
+	cat > /etc/dnsmasq.d/kvm-pxe.conf <<'EOF'
+# Managed by xg040g-network-mode.
+dhcp-userclass=set:kvm_ipxe,iPXE
+dhcp-match=set:kvm_efi64,option:client-arch,7
+dhcp-match=set:kvm_efi64,option:client-arch,9
+dhcp-match=set:kvm_efi64,option:client-arch,11
+dhcp-boot=tag:kvm_ipxe,http://10.40.0.1:8081/boot.ipxe
+dhcp-boot=tag:!kvm_ipxe,tag:kvm_efi64,ipxe.efi
+dhcp-boot=tag:!kvm_ipxe,tag:!kvm_efi64,undionly.kpxe
+EOF
+	chmod 0600 /etc/config/dhcp
+}
+
+write_firewall() {
+	cat > /etc/config/firewall <<'EOF'
+config defaults 'defaults'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option syn_flood '1'
+
+config zone 'lan'
+	option name 'lan'
+	list network 'lan'
+	list network 'lan6'
+	list network 'lan_autoip'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+config zone 'pxe'
+	option name 'pxe'
+	list network 'pxe'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+config rule 'pxe_dhcp'
+	option name 'PXE DHCP'
+	option src 'pxe'
+	option proto 'udp'
+	option dest_port '67'
+	option target 'ACCEPT'
+
+config rule 'pxe_dns'
+	option name 'PXE DNS'
+	option src 'pxe'
+	option proto 'tcp udp'
+	option dest_port '53'
+	option target 'ACCEPT'
+
+config rule 'pxe_tftp'
+	option name 'PXE TFTP'
+	option src 'pxe'
+	option proto 'udp'
+	option dest_port '69'
+	option target 'ACCEPT'
+
+config rule 'pxe_http'
+	option name 'PXE HTTP boot'
+	option src 'pxe'
+	option proto 'tcp'
+	option dest_port '8081'
+	option target 'ACCEPT'
+
+config rule 'pxe_ping'
+	option name 'PXE ping'
+	option src 'pxe'
+	option proto 'icmp'
+	option icmp_type 'echo-request'
+	option target 'ACCEPT'
+EOF
+	chmod 0600 /etc/config/firewall
+}
+
+write_uhttpd() {
+	uci -q delete uhttpd.kvmboot || true
+	uci commit uhttpd
+	/etc/init.d/xg040g-pxe-http enable >/dev/null 2>&1 || true
+}
+
+status() {
+	echo "SCHEMA_VERSION=$(uci -q get xg040g-management.main.schema_version || echo 0)"
+	echo "HOSTNAME=$(uci -q get system.@system[0].hostname || true)"
+	echo "MANAGEMENT_MAC=$(uci -q get xg040g-management.main.management_mac || true)"
+	echo "LAN_PORTS=$(uci -q get network.br_lan.ports || true)"
+	echo "PXE_PORTS=$(uci -q get network.br_pxe.ports || true)"
+	/usr/sbin/xg040g-pxe-uplink status
+}
+
+cmd="${1:-status}"
+case "$cmd" in
+	status)
+		status
+		;;
+	apply-default)
+		force=0
+		reload=1
+		shift
+		for arg in "$@"; do
+			case "$arg" in
+				--force) force=1 ;;
+				--no-reload) reload=0 ;;
+				*) usage >&2; exit 64 ;;
+			esac
+		done
+		[ "$force" = '1' ] || { echo 'Refusing to replace network configuration without --force.' >&2; exit 64; }
+		backup_configs
+		select_identity
+		write_network
+		write_dhcp
+		write_firewall
+		write_uhttpd
+		uci set xg040g-management.main.schema_version="$SCHEMA_VERSION"
+		uci commit xg040g-management
+		/usr/sbin/xg040g-pxe-uplink sync --no-reload
+		if [ "$reload" = '1' ]; then
+			/etc/init.d/network restart >/dev/null 2>&1
+			/etc/init.d/dnsmasq restart >/dev/null 2>&1
+			/etc/init.d/firewall restart >/dev/null 2>&1
+			/etc/init.d/uhttpd restart >/dev/null 2>&1
+			/etc/init.d/xg040g-pxe-http restart >/dev/null 2>&1
+			/etc/init.d/avahi-daemon restart >/dev/null 2>&1
+			/etc/init.d/xg040g-autoip restart >/dev/null 2>&1
+		fi
+		status
+		;;
+	*)
+		usage >&2
+		exit 64
+		;;
+esac

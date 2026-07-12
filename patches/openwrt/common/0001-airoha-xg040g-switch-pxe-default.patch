@@ -1,0 +1,60 @@
+diff --git a/target/linux/airoha/an7581/base-files/etc/board.d/02_network b/target/linux/airoha/an7581/base-files/etc/board.d/02_network
+index bcc22c0..a194e74 100644
+--- a/target/linux/airoha/an7581/base-files/etc/board.d/02_network
++++ b/target/linux/airoha/an7581/base-files/etc/board.d/02_network
+@@ -15,10 +15,15 @@ an7581_setup_interfaces()
+ 	airoha,an7581-evb)
+ 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "eth1"
+ 		;;
+-	bell,xg-040g-md|\
+-	nokia,xg-040g-md-tcboot)
++	bell,xg-040g-md)
+ 		ucidef_set_interfaces_lan_wan "lan2 lan3 lan4" "eth1"
+ 		;;
++	nokia,xg-040g-md-tcboot)
++		ucidef_set_interface_lan "lan2 lan3 eth1" dhcp
++		ucidef_set_interface "pxe" \
++			device "lan4" protocol static \
++			ipaddr "10.40.0.1" netmask "255.255.255.0"
++		;;
+ 	gemtek,w1700k-ubi)
+ 		ucidef_set_interfaces_lan_wan "lan2 lan3 lan4" "wan"
+ 		;;
+@@ -38,13 +43,17 @@ an7581_xg040g_ensure_mac()
+ an7581_xg040g_ensure_mac()
+ {
+ 	local board="$1"
++	local mode
+ 	local mac
+ 	local lan_mac
+ 	local idx
+ 
+ 	case "$board" in
+-	bell,xg-040g-md|\
++	bell,xg-040g-md)
++		mode=router
++		;;
+ 	nokia,xg-040g-md-tcboot)
++		mode=switch
+ 		;;
+ 	*)
+ 		return 0
+@@ -63,8 +72,13 @@ an7581_xg040g_ensure_mac()
+ 
+ 	lan_mac="$(macaddr_add "$mac" 1)"
+ 
+-	# wan (eth1) is a plain device, so the interface macaddr applies. lan is a
+-	# bridge (br-lan); its MAC must be set on the bridge device section,
+-	# otherwise the bridge keeps deriving a random MAC from the conduit.
+-	ucidef_set_interface_macaddr "wan" "$mac"
++	# The tcboot profile bridges the 2.5G eth1 device with the LAN switch.
++	# Do not recreate a wan interface while assigning its hardware address.
++	if [ "$mode" = router ]; then
++		ucidef_set_interface_macaddr "wan" "$mac"
++	else
++		ucidef_set_network_device_mac "eth1" "$mac"
++	fi
++
++	# Keep a deterministic bridge MAC when the bootloader contains a usable MAC.
+ 	ucidef_set_network_device_mac "br-lan" "$lan_mac"
+ }

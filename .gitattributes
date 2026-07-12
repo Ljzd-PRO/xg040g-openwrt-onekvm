@@ -1,7 +1,7 @@
 * text=auto eol=lf
 
 *.sh text eol=lf
-*.patch text eol=lf
+*.patch text eol=lf -whitespace
 *.config text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
@@ -15,4 +15,3 @@
 *.img binary
 *.itb binary
 *.zst binary
-

@@ -1,0 +1,32 @@
+#!/bin/sh
+
+has_managed_ipv4() {
+	ip -4 addr show dev br-lan 2>/dev/null | \
+		awk '$1 == "inet" && $2 !~ /^169[.]254[.]/ { found = 1 } END { exit found ? 0 : 1 }'
+}
+
+autoip_is_up() {
+	pidof avahi-autoipd >/dev/null 2>&1
+}
+
+grace="$(uci -q get xg040g-management.main.autoip_grace || echo 15)"
+case "$grace" in
+	''|*[!0-9]*) grace=15 ;;
+esac
+[ "$grace" -ge 5 ] 2>/dev/null || grace=15
+
+missing_since="$(date +%s)"
+
+while true; do
+	now="$(date +%s)"
+	if has_managed_ipv4; then
+		missing_since="$now"
+		autoip_is_up && ifdown lan_autoip >/dev/null 2>&1
+	else
+		[ "$missing_since" -le "$now" ] || missing_since="$now"
+		if [ $((now - missing_since)) -ge "$grace" ] && ! autoip_is_up; then
+			ifup lan_autoip >/dev/null 2>&1
+		fi
+	fi
+	sleep 2
+done
