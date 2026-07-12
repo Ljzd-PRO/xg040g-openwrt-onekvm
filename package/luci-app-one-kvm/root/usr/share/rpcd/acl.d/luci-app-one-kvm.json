@@ -12,6 +12,7 @@
 					"get_version",
 					"get_versions",
 					"get_hwcheck",
+					"get_pxe_settings",
 					"get_cloud_pxe"
 				],
 				"file": [
@@ -46,6 +47,7 @@
 				"luci.one-kvm": [
 					"service_action",
 					"restore_firmware_binary",
+					"set_pxe_port",
 					"set_pxe_uplink",
 					"reset_data",
 					"test_cloud_pxe_config",
@@ -80,6 +82,9 @@
 					"exec"
 				],
 				"/usr/sbin/xg040g-pxe-uplink": [
+					"exec"
+				],
+				"/usr/sbin/xg040g-network-mode": [
 					"exec"
 				],
 				"/usr/sbin/xg040g-cloud-pxe": [

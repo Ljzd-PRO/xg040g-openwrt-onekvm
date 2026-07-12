@@ -59,7 +59,8 @@ return view.extend({
 		state = state || {};
 		return E('div', { 'class': 'cbi-map' }, [
 			E('h2', {}, _('Cloud PXE')),
-			E('p', {}, _('Serve boot files directly from any rclone remote over a read-only HTTP data plane. LAN4 remains isolated and no USB disk is required.')),
+			E('p', {}, _('Serve boot files directly from any rclone remote over a read-only HTTP data plane. The selected PXE port remains isolated and no USB disk is required.')),
+			state.pxe_ready ? '' : E('p', { 'class': 'alert-message warning' }, _('Cloud PXE is configured but will not start until a PXE dedicated port is selected in PXE Settings.')),
 			E('div', { 'class': 'cbi-section' }, [
 				E('h3', {}, _('Status')),
 				E('div', { 'class': 'table' }, [

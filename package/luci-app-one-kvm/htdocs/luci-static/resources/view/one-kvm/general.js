@@ -32,12 +32,6 @@ const callRestoreFirmwareBinary = rpc.declare({
 	method: 'restore_firmware_binary'
 });
 
-const callSetPxeUplink = rpc.declare({
-	object: 'luci.one-kvm',
-	method: 'set_pxe_uplink',
-	params: ['enabled']
-});
-
 const callResetData = rpc.declare({
 	object: 'luci.one-kvm',
 	method: 'reset_data',
@@ -115,43 +109,6 @@ function restoreButton(versions) {
 		attrs.disabled = true;
 
 	return E('button', attrs, _('Restore firmware binary'));
-}
-
-function applyPxeUplink(enabled) {
-	return L.resolveDefault(callSetPxeUplink(enabled), {}).then(function(res) {
-		if (!res || !res.success) {
-			ui.addNotification(null, E('p', {}, _('Failed to update PXE uplink.')), 'error');
-			return;
-		}
-		ui.addTimeLimitedNotification(null, E('p', {}, enabled ?
-			_('PXE uplink enabled.') : _('PXE uplink disabled.')), 5000, 'info');
-		window.setTimeout(function() { window.location.reload(); }, 500);
-	});
-}
-
-function pxeUplinkButton(status) {
-	return E('button', {
-		'class': 'btn cbi-button ' + (status.pxe_uplink ? 'cbi-button-negative' : 'cbi-button-apply'),
-		'click': function(ev) {
-			ev.preventDefault();
-			if (status.pxe_uplink)
-				return applyPxeUplink(false);
-
-			ui.showModal(_('Enable PXE uplink'), [
-				E('p', {}, _('PXE clients will be routed to the upstream management network through NAT. LAN4 remains isolated from device management services.')),
-				E('div', { 'class': 'right' }, [
-					E('button', { 'class': 'btn', 'click': ui.hideModal }, _('Cancel')), ' ',
-					E('button', {
-						'class': 'btn cbi-button-positive important',
-						'click': function() {
-							ui.hideModal();
-							return applyPxeUplink(true);
-						}
-					}, _('Enable'))
-				])
-			]);
-		}
-	}, status.pxe_uplink ? _('Disable PXE uplink') : _('Enable PXE uplink'));
 }
 
 function resetOneKvmData() {
@@ -257,6 +214,16 @@ function frpcStatus(status) {
 	]);
 }
 
+function pxePortLabel(port) {
+	switch (port) {
+	case 'lan2': return 'LAN2';
+	case 'lan3': return 'LAN3';
+	case 'lan4': return 'LAN4';
+	case 'eth1': return _('2.5G port');
+	default: return _('Disabled (all ports are switch ports)');
+	}
+}
+
 function renderStatus(status, versions, hwcheck) {
 	const url = 'http://' + window.location.hostname + ':' + (status.http_port || '8080') + '/';
 	let overlayText;
@@ -291,8 +258,10 @@ function renderStatus(status, versions, hwcheck) {
 			]) ]),
 			E('tr', {}, [ E('td', {}, _('Video')), E('td', {}, badge(status.video0_exists, _('/dev/video0 found'), _('/dev/video0 missing'))) ]),
 			E('tr', {}, [ E('td', {}, _('CH9329')), E('td', {}, badge(status.ch9329_exists, _('/dev/ch9329 found'), _('/dev/ch9329 missing'))) ]),
-			E('tr', {}, [ E('td', {}, _('PXE port')), E('td', {}, codeValue('LAN4 / 10.40.0.1:8081')) ]),
-			E('tr', {}, [ E('td', {}, _('PXE upstream access')), E('td', {}, badge(status.pxe_uplink, _('Enabled through NAT'), _('Local KVMSTORE only'))) ]),
+			E('tr', {}, [ E('td', {}, _('PXE port')), E('td', {}, codeValue(pxePortLabel(status.pxe_port))) ]),
+			E('tr', {}, [ E('td', {}, _('PXE upstream access')), E('td', {}, status.pxe_active ?
+				badge(status.pxe_uplink, _('Enabled through NAT'), _('Local PXE services only')) :
+				_('Unavailable while PXE is disabled')) ]),
 			E('tr', {}, [ E('td', {}, _('FRPC remote access')), E('td', {}, frpcStatus(status)) ]),
 			E('tr', {}, [ E('td', {}, _('One-KVM data directory')), E('td', {}, codeValue(status.data_dir)) ]),
 			E('tr', {}, [ E('td', {}, _('Hardware check')), E('td', {}, codeValue(hwcheck.output)) ])
@@ -304,7 +273,6 @@ function renderStatus(status, versions, hwcheck) {
 			button(_('Enable boot'), 'enable', 'cbi-button-apply'), ' ',
 			button(_('Disable boot'), 'disable', 'cbi-button-reset'), ' ',
 			restoreButton(versions), ' ',
-			pxeUplinkButton(status), ' ',
 			frpcManagementButton(status), ' ',
 			resetDataButton(status)
 		])

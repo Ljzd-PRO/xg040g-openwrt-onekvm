@@ -54,6 +54,25 @@ function validPort(value) {
 	return port >= 1 && port <= 65535 ? '' + port : '8080';
 }
 
+function validPxePort(value) {
+	return type(value) == 'string' && index(['none', 'lan2', 'lan3', 'lan4', 'eth1'], value) >= 0;
+}
+
+function currentPxePort() {
+	let port = execCommand("uci -q get xg040g-management.pxe.port || echo none");
+	return validPxePort(port) ? port : 'none';
+}
+
+function pxePortState(port) {
+	let carrier = execCommand('cat /sys/class/net/' + port + '/carrier 2>/dev/null || echo 0');
+	let master = execCommand('basename "$(readlink /sys/class/net/' + port + '/master 2>/dev/null)" 2>/dev/null || true');
+	return {
+		id: port,
+		carrier: carrier == '1',
+		master: master || null
+	};
+}
+
 function cloudPxeCall(action, config, remotePath, enabled) {
 	let temp = null;
 	if (config != null) {
@@ -96,6 +115,7 @@ const methods = {
 			let udcCount = execCommand("find /sys/class/udc -mindepth 1 -maxdepth 1 2>/dev/null | wc -l");
 			let dataDir = execCommand("uci -q get one-kvm.main.data_dir || echo /etc/one-kvm");
 			let pxeUplink = execCommand("uci -q get xg040g-management.pxe.allow_uplink || echo 0");
+			let pxePort = currentPxePort();
 
 			return {
 				pid: pid,
@@ -111,6 +131,8 @@ const methods = {
 				data_dir: dataDir,
 				reset_supported: dataDir == '/etc/one-kvm',
 				pxe_uplink: pxeUplink == '1',
+				pxe_port: pxePort,
+				pxe_active: pxePort != 'none',
 				pxe_address: '10.40.0.1',
 				pxe_http_port: '8081',
 				frpc_binary_exists: frpcBinary,
@@ -120,6 +142,39 @@ const methods = {
 				frpc_available: frpcBinary && frpcInit && frpcConfig && frpcLuci,
 				frpc_running: frpcPid != null && frpcPid != '',
 				frpc_boot_enabled: frpcInit ? init_enabled('frpc') : false
+			};
+		}
+	},
+
+	get_pxe_settings: {
+		call: function() {
+			let port = currentPxePort();
+			let active = port != 'none';
+			let address = execCommand("ip -4 -o addr show dev br-pxe 2>/dev/null | awk '$4 == \"10.40.0.1/24\" { print $4; exit }'");
+			let dnsmasq = execCommand("pidof dnsmasq >/dev/null 2>&1 && echo 1 || echo 0");
+			let localHttp = execCommand("netstat -ltn 2>/dev/null | grep -Fq '10.40.0.1:8081' && echo 1 || echo 0");
+			let cloudHttp = execCommand("netstat -ltn 2>/dev/null | grep -Fq '10.40.0.1:8083' && echo 1 || echo 0");
+			let tftp = execCommand("uci -q get dhcp.@dnsmasq[0].enable_tftp || echo 0");
+
+			return {
+				port: port,
+				active: active,
+				allow_uplink: active && execCommand("uci -q get xg040g-management.pxe.allow_uplink || echo 0") == '1',
+				lan_ports: execCommand("uci -q get network.br_lan.ports || true") || '',
+				pxe_ports: execCommand("uci -q get network.br_pxe.ports || true") || '',
+				pxe_ready: active && address == '10.40.0.1/24',
+				pxe_address: '10.40.0.1',
+				local_http_running: localHttp == '1',
+				cloud_http_running: cloudHttp == '1',
+				dnsmasq_running: dnsmasq == '1',
+				tftp_enabled: active && tftp == '1',
+				ports: [
+					pxePortState('lan2'),
+					pxePortState('lan3'),
+					pxePortState('lan4'),
+					pxePortState('eth1')
+				],
+				apply_status: readfile('/tmp/xg040g-pxe-port-apply.status') || ''
 			};
 		}
 	},
@@ -206,6 +261,8 @@ const methods = {
 			let disable = value === false || value == 0 || value == '0';
 			if (!enable && !disable)
 				return { success: false, error: 'Invalid PXE uplink value' };
+			if (enable && currentPxePort() == 'none')
+				return { success: false, error: 'no_pxe_port' };
 
 			let action = enable ? 'enable' : 'disable';
 			let output = execCommand('/usr/sbin/xg040g-pxe-uplink ' + action + ' 2>&1');
@@ -218,17 +275,42 @@ const methods = {
 		}
 	},
 
+	set_pxe_port: {
+		args: { port: 'port', confirm: 'confirm' },
+		call: function(req) {
+			let args = req && req.args ? req.args : {};
+			let port = args.port;
+			if (!validPxePort(port))
+				return { success: false, error: 'invalid_pxe_port' };
+			if (args.confirm != 'APPLY')
+				return { success: false, error: 'confirmation_required' };
+
+			let output = execCommand('/usr/sbin/xg040g-network-mode set-pxe-port ' + shellquote(port) + ' --force --defer-reload 2>&1');
+			let accepted = output != null && match(output, /(^|\n)APPLY_ACCEPTED=1($|\n)/) != null;
+			return {
+				success: accepted,
+				accepted: accepted,
+				port: port,
+				output: output,
+				error: accepted ? null : 'pxe_port_apply_failed'
+			};
+		}
+	},
+
 	get_cloud_pxe: {
 		call: function() {
 			let enabled = execCommand("uci -q get xg040g-kvm.cloud_pxe.enabled || echo 0");
 			let remotePath = execCommand("uci -q get xg040g-kvm.cloud_pxe.remote_path || true");
 			let running = execCommand("netstat -ltn 2>/dev/null | grep -Fq '10.40.0.1:8083' && echo 1 || echo 0");
+			let pxePort = currentPxePort();
 			return {
 				enabled: enabled == '1',
 				running: running == '1',
 				remote_path: remotePath || '',
 				config: readfile('/etc/xg040g/rclone.conf') || '',
-				address: 'http://10.40.0.1:8083'
+				address: 'http://10.40.0.1:8083',
+				pxe_port: pxePort,
+				pxe_ready: pxePort != 'none'
 			};
 		}
 	},

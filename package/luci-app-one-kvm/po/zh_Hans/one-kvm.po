@@ -114,9 +114,6 @@ msgstr "启用 PXE 上游访问"
 msgid "Disable PXE uplink"
 msgstr "禁用 PXE 上游访问"
 
-msgid "PXE clients will be routed to the upstream management network through NAT. LAN4 remains isolated from device management services."
-msgstr "PXE 客户端将通过 NAT 访问上游管理网络。LAN4 仍无法访问设备管理服务。"
-
 msgid "Failed to update PXE uplink."
 msgstr "更新 PXE 上游访问失败。"
 
@@ -179,9 +176,6 @@ msgstr "常规"
 
 msgid "Cloud PXE"
 msgstr "云端 PXE"
-
-msgid "Serve boot files directly from any rclone remote over a read-only HTTP data plane. LAN4 remains isolated and no USB disk is required."
-msgstr "通过只读 HTTP 数据面直接提供任意 rclone 远程存储中的启动文件。LAN4 仍保持隔离，且无需 USB 硬盘。"
 
 msgid "Data plane"
 msgstr "数据面"
@@ -398,3 +392,147 @@ msgstr "打开配置"
 
 msgid "FRPC remote access"
 msgstr "FRPC 远程接入"
+
+msgid "2.5G port"
+msgstr "2.5G 网口"
+
+msgid "Disabled (all ports are switch ports)"
+msgstr "不启用（全部网口为交换机口）"
+
+msgid "Local PXE services only"
+msgstr "仅本地 PXE 服务"
+
+msgid "Unavailable while PXE is disabled"
+msgstr "未启用 PXE 时不可用"
+
+msgid "PXE Settings"
+msgstr "PXE 设置"
+
+msgid "Current status"
+msgstr "当前状态"
+
+msgid "PXE dedicated port"
+msgstr "PXE 专用端口"
+
+msgid "Management switch ports"
+msgstr "管理交换机端口"
+
+msgid "PXE interface"
+msgstr "PXE 接口"
+
+msgid "Ready at 10.40.0.1/24"
+msgstr "已就绪：10.40.0.1/24"
+
+msgid "Not ready"
+msgstr "未就绪"
+
+msgid "DHCP / TFTP"
+msgstr "DHCP / TFTP"
+
+msgid "Local boot HTTP"
+msgstr "本地启动 HTTP"
+
+msgid "Cloud PXE HTTP"
+msgstr "云端 PXE HTTP"
+
+msgid "Listening on port 8081"
+msgstr "正在监听 8081 端口"
+
+msgid "Listening on port 8083"
+msgstr "正在监听 8083 端口"
+
+msgid "Physical ports"
+msgstr "物理网口"
+
+msgid "Port"
+msgstr "网口"
+
+msgid "Link"
+msgstr "链路"
+
+msgid "Mode"
+msgstr "模式"
+
+msgid "Connected"
+msgstr "已连接"
+
+msgid "Disconnected"
+msgstr "未连接"
+
+msgid "PXE dedicated"
+msgstr "PXE 专用"
+
+msgid "Switch and management"
+msgstr "交换机与管理"
+
+msgid "Not attached to a bridge"
+msgstr "未加入网桥"
+
+msgid "Persistent port assignment"
+msgstr "持久化端口分配"
+
+msgid "Allow PXE clients to access the upstream network"
+msgstr "允许 PXE 客户端访问上游网络"
+
+msgid "Disabled by default. When enabled, only PXE-to-management forwarding and NAT are added."
+msgstr "默认关闭。启用后仅添加从 PXE 到管理网络的转发与 NAT。"
+
+msgid "Select a PXE dedicated port before enabling upstream access."
+msgstr "请先选择 PXE 专用端口，再启用上游访问。"
+
+msgid "Apply port assignment"
+msgstr "应用端口分配"
+
+msgid "The selected PXE port is already active."
+msgstr "当前已经使用所选的 PXE 端口。"
+
+msgid "Restore all ports to switch mode"
+msgstr "恢复全部网口为交换机模式"
+
+msgid "Confirm PXE port change"
+msgstr "确认切换 PXE 端口"
+
+msgid "PXE services will stop and all four physical ports will join the management switch."
+msgstr "PXE 服务将停止，四个物理网口都会加入管理交换机。"
+
+msgid "The selected port will immediately leave the management switch and become the dedicated PXE port. LuCI, SSH and mDNS will no longer be reachable through that port."
+msgstr "所选网口会立即离开管理交换机并成为 PXE 专用端口，之后无法再通过该网口访问 LuCI、SSH 或 mDNS。"
+
+msgid "If this management session uses the selected port, the page will disconnect. Move the management cable to another port. This setting has no automatic rollback."
+msgstr "如果当前管理连接正在使用所选网口，页面会断开。请把管理网线移到其他网口。此配置不会自动回退。"
+
+msgid "Restore switch mode"
+msgstr "恢复交换机模式"
+
+msgid "Apply PXE port"
+msgstr "应用 PXE 端口"
+
+msgid "Failed to save the PXE port configuration."
+msgstr "保存 PXE 端口配置失败。"
+
+msgid "Applying network configuration"
+msgstr "正在应用网络配置"
+
+msgid "The configuration was saved and the network is restarting. Reconnect through any remaining switch port if this page becomes unavailable."
+msgstr "配置已保存，网络正在重启。如果页面无法访问，请通过其余交换机网口重新连接。"
+
+msgid "Failed to update PXE upstream access."
+msgstr "更新 PXE 上游访问失败。"
+
+msgid "PXE upstream access enabled."
+msgstr "已启用 PXE 上游访问。"
+
+msgid "PXE upstream access disabled."
+msgstr "已关闭 PXE 上游访问。"
+
+msgid "Enable PXE upstream access"
+msgstr "启用 PXE 上游访问"
+
+msgid "PXE clients will be routed through NAT to the management network. They will still be blocked from device management services."
+msgstr "PXE 客户端将通过 NAT 访问管理网络，但仍无法访问设备管理服务。"
+
+msgid "Serve boot files directly from any rclone remote over a read-only HTTP data plane. The selected PXE port remains isolated and no USB disk is required."
+msgstr "通过只读 HTTP 数据面直接提供任意 rclone 远程存储中的启动文件；所选 PXE 端口保持隔离，且无需 USB 硬盘。"
+
+msgid "Cloud PXE is configured but will not start until a PXE dedicated port is selected in PXE Settings."
+msgstr "云端 PXE 配置会被保留，但只有在“PXE 设置”中选择专用端口后才会启动。"

@@ -21,7 +21,12 @@
 	},
 	"admin/services/one-kvm/cloud-pxe": {
 		"title": "Cloud PXE",
-		"order": 20,
+		"order": 30,
 		"action": { "type": "view", "path": "one-kvm/cloud-pxe" }
+	},
+	"admin/services/one-kvm/pxe": {
+		"title": "PXE Settings",
+		"order": 20,
+		"action": { "type": "view", "path": "one-kvm/pxe" }
 	}
 }
