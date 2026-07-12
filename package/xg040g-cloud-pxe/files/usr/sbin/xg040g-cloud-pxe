@@ -53,10 +53,12 @@ install_assets() {
 status() {
 	enabled="$(uci -q get "$UCI_CONFIG.enabled" || echo 0)"
 	remote_path="$(uci -q get "$UCI_CONFIG.remote_path" || true)"
+	pxe_port="$(uci -q get xg040g-management.pxe.port || echo none)"
 	running=0
 	pidof rclone >/dev/null 2>&1 && netstat -ltn 2>/dev/null | grep -q '10.40.0.1:8083' && running=1
-	printf 'ENABLED=%s\nRUNNING=%s\nREMOTE_PATH=%s\nCONFIG_EXISTS=%s\n' \
-		"$enabled" "$running" "$remote_path" "$([ -s "$CONFIG" ] && echo 1 || echo 0)"
+	[ "$pxe_port" = 'none' ] && ready=0 || ready=1
+	printf 'ENABLED=%s\nRUNNING=%s\nPXE_READY=%s\nPXE_PORT=%s\nREMOTE_PATH=%s\nCONFIG_EXISTS=%s\n' \
+		"$enabled" "$running" "$ready" "$pxe_port" "$remote_path" "$([ -s "$CONFIG" ] && echo 1 || echo 0)"
 }
 
 cmd="${1:-status}"

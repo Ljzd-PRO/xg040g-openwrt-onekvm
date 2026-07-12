@@ -6,7 +6,7 @@
 [ "$(board_name 2>/dev/null)" = 'nokia,xg-040g-md-tcboot' ] || exit 0
 
 schema="$(uci -q get xg040g-management.main.schema_version || echo 0)"
-[ "$schema" = '1' ] && exit 0
+[ "$schema" = '2' ] && exit 0
 
 /usr/sbin/xg040g-network-mode apply-default --force --no-reload || exit 1
 

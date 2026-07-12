@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=xg040g-kvm-support
 PKG_VERSION:=0.1.0
-PKG_RELEASE:=4
+PKG_RELEASE:=5
 
 PKG_MAINTAINER:=XG-040G-MD OpenWrt One-KVM contributors
 PKG_LICENSE:=GPL-3.0-only
@@ -25,7 +25,7 @@ endef
 define Package/xg040g-kvm-support/description
   Runtime helpers for CH9329 serial HID discovery, optional ustreamer
   diagnostics, USB3 KVMSTORE mounting, PXE/iPXE setup and rclone cloud sync.
-  LAN4 PXE networking is owned by xg040g-switch-management; this package only
+  PXE port networking is owned by xg040g-switch-management; this package only
   prepares storage, boot content and One-KVM hardware helpers.
 endef
 

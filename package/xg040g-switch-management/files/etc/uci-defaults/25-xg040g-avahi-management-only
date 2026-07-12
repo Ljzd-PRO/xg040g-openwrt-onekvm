@@ -1,0 +1,19 @@
+#!/bin/sh
+
+config='/etc/avahi/avahi-daemon.conf'
+[ -f "$config" ] || exit 0
+
+tmp="${config}.xg040g.$$"
+awk '
+	/^allow-interfaces=/ { next }
+	$0 == "[server]" {
+		print
+		print "allow-interfaces=br-lan"
+		next
+	}
+	{ print }
+' "$config" > "$tmp"
+
+chmod 0644 "$tmp"
+mv "$tmp" "$config"
+exit 0

@@ -6,16 +6,6 @@ uci -q get xg040g-kvm.cloud_pxe.enabled >/dev/null || uci set xg040g-kvm.cloud_p
 uci -q get xg040g-kvm.cloud_pxe.remote_path >/dev/null || uci set xg040g-kvm.cloud_pxe.remote_path=''
 uci commit xg040g-kvm
 
-if ! uci -q get firewall.pxe_cloud_http >/dev/null; then
-	uci set firewall.pxe_cloud_http='rule'
-	uci set firewall.pxe_cloud_http.name='PXE cloud HTTP'
-	uci set firewall.pxe_cloud_http.src='pxe'
-	uci set firewall.pxe_cloud_http.proto='tcp'
-	uci set firewall.pxe_cloud_http.dest_port='8083'
-	uci set firewall.pxe_cloud_http.target='ACCEPT'
-	uci commit firewall
-fi
-
 chmod 0600 /etc/xg040g/rclone.conf
 /usr/sbin/xg040g-cloud-pxe install-assets >/dev/null 2>&1 || true
 /etc/init.d/xg040g-cloud-pxe enable >/dev/null 2>&1 || true

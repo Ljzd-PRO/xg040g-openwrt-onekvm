@@ -36,6 +36,7 @@ if git grep -nE 'api[.]day[.]app/|/Users/[^/]+/|[A-Za-z]:/Users/' -- . ':(exclud
 fi
 
 bash -n scripts/*.sh
+scripts/test-pxe-port-topology.sh
 package_shell_scripts() {
 	while IFS= read -r -d '' script; do
 		IFS= read -r first_line < "$script" || true
@@ -49,6 +50,7 @@ done < <(package_shell_scripts)
 
 node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/general.js
 node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/cloud-pxe.js
+node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/pxe.js
 jq empty package/luci-app-one-kvm/root/usr/share/luci/menu.d/luci-app-one-kvm.json
 jq empty package/luci-app-one-kvm/root/usr/share/rpcd/acl.d/luci-app-one-kvm.json
 
@@ -128,6 +130,18 @@ grep -Eq '^CONFIG_IMAGEOPT=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PREINITOPT=y$' configs/onekvm.config
 grep -Eq '^CONFIG_TARGET_PREINIT_TIMEOUT=12$' configs/onekvm.config
 grep -Eq '^PKG_LICENSE:=GPL-3.0-only$' package/xg040g-switch-management/Makefile
+grep -q "option port 'none'" package/xg040g-switch-management/files/etc/config/xg040g-management
+grep -q "SCHEMA_VERSION='2'" package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
+grep -q $'\treturn 0' package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
+grep -q "if \[ \"\$reload\" = '1' \]; then" package/xg040g-switch-management/files/usr/sbin/xg040g-pxe-uplink
+grep -q 'allow-interfaces=br-lan' package/xg040g-switch-management/files/etc/uci-defaults/25-xg040g-avahi-management-only
+grep -q 'ucidef_set_interface_lan "lan2 lan3 lan4 eth1" dhcp' patches/openwrt/common/0001-airoha-xg040g-switch-pxe-default.patch
+grep -q 'set-pxe-port <none|lan2|lan3|lan4|eth1>' package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
+grep -q 'start-stop-daemon -S -b' package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
+if grep -q 'nohup' package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode; then
+	echo 'PXE deferred reload must not depend on a separately packaged nohup binary.' >&2
+	exit 1
+fi
 grep -q "dhcp-userclass=set:kvm_ipxe,iPXE" package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
 grep -q 'boot-select.ipxe' package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
 grep -q "dest_port '8083'" package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
@@ -157,6 +171,8 @@ if grep -q 'tftp-interface' package/xg040g-switch-management/files/usr/sbin/xg04
 fi
 grep -q "procd_set_param command /usr/sbin/uhttpd" package/xg040g-switch-management/files/etc/init.d/xg040g-pxe-http
 grep -q "args: { enabled: false }" package/luci-app-one-kvm/root/usr/share/rpcd/ucode/one-kvm.uc
+grep -q "args: { port: 'port', confirm: 'confirm' }" package/luci-app-one-kvm/root/usr/share/rpcd/ucode/one-kvm.uc
+grep -q "method: 'set_pxe_port'" package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/pxe.js
 grep -q "codeValue(hwcheck.output)" package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/general.js
 for msgid in 'Start' 'Stop' 'Restart' 'Enable boot' 'Disable boot' 'Running' 'Stopped'; do
 	grep -Fq "msgid \"$msgid\"" package/luci-app-one-kvm/po/zh_Hans/one-kvm.po

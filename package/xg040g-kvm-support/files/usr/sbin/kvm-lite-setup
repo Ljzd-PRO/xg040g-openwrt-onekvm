@@ -28,11 +28,18 @@ configure_fstab() {
 }
 
 verify_pxe_network() {
+	pxe_port="$(uci -q get xg040g-management.pxe.port || echo none)"
+	if [ "$pxe_port" = 'none' ]; then
+		[ -z "$(uci -q get network.br_pxe.ports || true)" ] && return 0
+		echo 'PXE is disabled but br-pxe still has a port.' >&2
+		return 1
+	fi
+
 	[ "$(uci -q get network.pxe.device)" = 'br-pxe' ] && \
 		[ "$(uci -q get network.pxe.proto)" = 'static' ] && \
-		uci -q get network.br_pxe.ports | grep -qw lan4 && return 0
+		uci -q get network.br_pxe.ports | grep -Fqx "$pxe_port" && return 0
 
-	echo 'LAN4 PXE defaults are missing. Run xg040g-network-mode apply-default --force.' >&2
+	echo 'The selected PXE port is not applied. Run xg040g-network-mode set-pxe-port again.' >&2
 	return 1
 }
 
@@ -46,6 +53,7 @@ status() {
 	[ -L /www/kvmboot ] && echo "HTTP_LINK=/www/kvmboot -> $(readlink /www/kvmboot)" || echo "HTTP_LINK=missing"
 	uci -q show network.pxe || true
 	uci -q show network.br_pxe || true
+	echo "PXE_PORT=$(uci -q get xg040g-management.pxe.port || echo none)"
 	/usr/sbin/xg040g-pxe-uplink status 2>/dev/null || true
 	[ -f /etc/dnsmasq.d/kvm-pxe.conf ] && echo 'PXE_DNSMASQ_SNIPPET=/etc/dnsmasq.d/kvm-pxe.conf' || echo 'PXE_DNSMASQ_SNIPPET=missing'
 }

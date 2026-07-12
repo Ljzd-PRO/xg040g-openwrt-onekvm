@@ -3,11 +3,50 @@ set -eu
 
 BACKUP_DIR='/etc/xg040g-network-backup'
 STORE='/mnt/kvmstore'
-SCHEMA_VERSION='1'
+SCHEMA_VERSION='2'
+ALL_PORTS='lan2 lan3 lan4 eth1'
+LOCK_DIR='/var/lock/xg040g-network-mode.lock'
+APPLY_STATUS='/tmp/xg040g-pxe-port-apply.status'
 
 usage() {
 	echo "Usage: xg040g-network-mode status"
-	echo "       xg040g-network-mode apply-default --force [--no-reload]"
+	echo "       xg040g-network-mode set-pxe-port <none|lan2|lan3|lan4|eth1> --force [--no-reload|--defer-reload]"
+	echo "       xg040g-network-mode apply-default --force [--no-reload|--defer-reload]"
+}
+
+valid_pxe_port() {
+	case "$1" in
+		none|lan2|lan3|lan4|eth1) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+current_pxe_port() {
+	port="$(uci -q get xg040g-management.pxe.port || echo none)"
+	valid_pxe_port "$port" || port='none'
+	echo "$port"
+}
+
+acquire_lock() {
+	mkdir -p /var/lock
+	if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+		echo 'Another network topology change is already running.' >&2
+		exit 75
+	fi
+	trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
+}
+
+write_apply_status() {
+	state="$1"
+	message="$2"
+	tmp="${APPLY_STATUS}.$$"
+	{
+		printf 'STATE=%s\n' "$state"
+		printf 'MESSAGE=%s\n' "$message"
+		printf 'PXE_PORT=%s\n' "$(current_pxe_port)"
+		printf 'UPDATED_AT=%s\n' "$(date +%s)"
+	} > "$tmp"
+	mv "$tmp" "$APPLY_STATUS"
 }
 
 valid_global_mac() {
@@ -67,9 +106,12 @@ backup_configs() {
 }
 
 write_network() {
+	output="$1"
+	pxe_port="$2"
 	mac="$(uci -q get xg040g-management.main.management_mac)"
 	hostname="$(uci -q get xg040g-management.main.hostname)"
-	cat > /etc/config/network <<EOF
+	{
+		cat <<EOF
 config interface 'loopback'
 	option device 'lo'
 	option proto 'static'
@@ -84,9 +126,11 @@ config device 'br_lan'
 	option type 'bridge'
 	option stp '0'
 	option macaddr '$mac'
-	list ports 'lan2'
-	list ports 'lan3'
-	list ports 'eth1'
+EOF
+		for port in $ALL_PORTS; do
+			[ "$port" = "$pxe_port" ] || printf "\tlist ports '%s'\n" "$port"
+		done
+		cat <<EOF
 
 config interface 'lan'
 	option device 'br-lan'
@@ -103,24 +147,30 @@ config interface 'lan_autoip'
 	option device 'br-lan'
 	option proto 'autoip'
 	option auto '0'
+EOF
+		if [ "$pxe_port" != 'none' ]; then
+			cat <<EOF
 
 config device 'br_pxe'
 	option name 'br-pxe'
 	option type 'bridge'
 	option stp '0'
-	list ports 'lan4'
+	list ports '$pxe_port'
 
 config interface 'pxe'
 	option device 'br-pxe'
 	option proto 'static'
 	list ipaddr '10.40.0.1/24'
 EOF
-	chmod 0600 /etc/config/network
+		fi
+	} > "$output"
 }
 
 write_dhcp() {
-	mkdir -p /etc/dnsmasq.d "$STORE/tftp" "$STORE/netboot"
-	cat > /etc/config/dhcp <<'EOF'
+	output="$1"
+	pxe_port="$2"
+	{
+		cat <<'EOF'
 config dnsmasq
 	option domainneeded '1'
 	option boguspriv '1'
@@ -136,10 +186,16 @@ config dnsmasq
 	option nonwildcard '1'
 	option localservice '1'
 	option confdir '/etc/dnsmasq.d'
+EOF
+		if [ "$pxe_port" != 'none' ]; then
+			cat <<'EOF'
 	option enable_tftp '1'
 	option tftp_root '/mnt/kvmstore/tftp'
 	option tftp_no_fail '1'
 	list interface 'pxe'
+EOF
+		fi
+		cat <<'EOF'
 
 config dhcp 'lan'
 	option interface 'lan'
@@ -147,6 +203,9 @@ config dhcp 'lan'
 	option dhcpv4 'disabled'
 	option dhcpv6 'disabled'
 	option ra 'disabled'
+EOF
+		if [ "$pxe_port" != 'none' ]; then
+			cat <<'EOF'
 
 config dhcp 'pxe'
 	option interface 'pxe'
@@ -156,6 +215,9 @@ config dhcp 'pxe'
 	option dhcpv4 'server'
 	option dhcpv6 'disabled'
 	option ra 'disabled'
+EOF
+		fi
+		cat <<'EOF'
 
 config odhcpd 'odhcpd'
 	option maindhcp '0'
@@ -163,21 +225,14 @@ config odhcpd 'odhcpd'
 	option leasetrigger '/usr/sbin/odhcpd-update'
 	option loglevel '4'
 EOF
-	cat > /etc/dnsmasq.d/kvm-pxe.conf <<'EOF'
-# Managed by xg040g-network-mode.
-dhcp-userclass=set:kvm_ipxe,iPXE
-dhcp-match=set:kvm_efi64,option:client-arch,7
-dhcp-match=set:kvm_efi64,option:client-arch,9
-dhcp-match=set:kvm_efi64,option:client-arch,11
-dhcp-boot=tag:kvm_ipxe,http://10.40.0.1:8081/boot-select.ipxe
-dhcp-boot=tag:!kvm_ipxe,tag:kvm_efi64,ipxe.efi
-dhcp-boot=tag:!kvm_ipxe,tag:!kvm_efi64,undionly.kpxe
-EOF
-	chmod 0600 /etc/config/dhcp
+	} > "$output"
 }
 
 write_firewall() {
-	cat > /etc/config/firewall <<'EOF'
+	output="$1"
+	pxe_port="$2"
+	{
+		cat <<'EOF'
 config defaults 'defaults'
 	option input 'REJECT'
 	option output 'ACCEPT'
@@ -192,6 +247,9 @@ config zone 'lan'
 	option input 'ACCEPT'
 	option output 'ACCEPT'
 	option forward 'REJECT'
+EOF
+		if [ "$pxe_port" != 'none' ]; then
+			cat <<'EOF'
 
 config zone 'pxe'
 	option name 'pxe'
@@ -242,60 +300,211 @@ config rule 'pxe_ping'
 	option icmp_type 'echo-request'
 	option target 'ACCEPT'
 EOF
-	chmod 0600 /etc/config/firewall
+		fi
+	} > "$output"
 }
 
-write_uhttpd() {
+write_pxe_snippet() {
+	pxe_port="$1"
+	mkdir -p /etc/dnsmasq.d "$STORE/tftp" "$STORE/netboot"
+	if [ "$pxe_port" = 'none' ]; then
+		rm -f /etc/dnsmasq.d/kvm-pxe.conf
+		return
+	fi
+	cat > /etc/dnsmasq.d/.kvm-pxe.conf.new <<'EOF'
+# Managed by xg040g-network-mode.
+dhcp-userclass=set:kvm_ipxe,iPXE
+dhcp-match=set:kvm_efi64,option:client-arch,7
+dhcp-match=set:kvm_efi64,option:client-arch,9
+dhcp-match=set:kvm_efi64,option:client-arch,11
+dhcp-boot=tag:kvm_ipxe,http://10.40.0.1:8081/boot-select.ipxe
+dhcp-boot=tag:!kvm_ipxe,tag:kvm_efi64,ipxe.efi
+dhcp-boot=tag:!kvm_ipxe,tag:!kvm_efi64,undionly.kpxe
+EOF
+	mv /etc/dnsmasq.d/.kvm-pxe.conf.new /etc/dnsmasq.d/kvm-pxe.conf
+}
+
+stage_configs() {
+	pxe_port="$1"
+	stage="$(mktemp -d /tmp/xg040g-network-mode.XXXXXX)"
+	write_network "$stage/network" "$pxe_port"
+	write_dhcp "$stage/dhcp" "$pxe_port"
+	write_firewall "$stage/firewall" "$pxe_port"
+	for config in network dhcp firewall; do
+		uci -c "$stage" -q show "$config" >/dev/null || {
+			rm -rf "$stage"
+			echo "Generated $config configuration is invalid." >&2
+			return 1
+		}
+	done
+	echo "$stage"
+}
+
+install_staged_configs() {
+	stage="$1"
+	for config in network dhcp firewall; do
+		cp "$stage/$config" "/etc/config/.xg040g-$config.$$"
+		chmod 0600 "/etc/config/.xg040g-$config.$$"
+		mv "/etc/config/.xg040g-$config.$$" "/etc/config/$config"
+	done
+	rm -rf "$stage"
+}
+
+stop_pxe_data_plane() {
+	/etc/init.d/xg040g-cloud-pxe stop >/dev/null 2>&1 || true
+	/etc/init.d/xg040g-pxe-http stop >/dev/null 2>&1 || true
+	/etc/init.d/dnsmasq stop >/dev/null 2>&1 || true
+}
+
+reload_managed() {
+	acquire_lock
+	write_apply_status 'applying' 'Reloading managed network services.'
+	if /etc/init.d/network restart >/dev/null 2>&1 && \
+		/etc/init.d/firewall restart >/dev/null 2>&1 && \
+		/etc/init.d/dnsmasq restart >/dev/null 2>&1; then
+		pxe_port="$(current_pxe_port)"
+		if [ "$pxe_port" = 'none' ]; then
+			/etc/init.d/xg040g-pxe-http stop >/dev/null 2>&1 || true
+			/etc/init.d/xg040g-cloud-pxe stop >/dev/null 2>&1 || true
+		else
+			/etc/init.d/xg040g-pxe-http restart >/dev/null 2>&1 || true
+			/etc/init.d/xg040g-cloud-pxe restart >/dev/null 2>&1 || true
+		fi
+		/etc/init.d/avahi-daemon restart >/dev/null 2>&1 || true
+		/etc/init.d/xg040g-autoip restart >/dev/null 2>&1 || true
+		write_apply_status 'complete' 'Network topology applied.'
+		return 0
+	fi
+	write_apply_status 'failed' 'A managed network service failed to restart.'
+	return 1
+}
+
+schedule_reload() {
+	write_apply_status 'accepted' 'Network topology saved; reload scheduled.'
+	rm -f /tmp/xg040g-pxe-port-reload.pid
+	: > /tmp/xg040g-pxe-port-apply.log
+	start-stop-daemon -S -b -m -p /tmp/xg040g-pxe-port-reload.pid \
+		-x /bin/sh -O /tmp/xg040g-pxe-port-apply.log -- -c \
+		'trap "rm -f /tmp/xg040g-pxe-port-reload.pid" EXIT; sleep 1; /usr/sbin/xg040g-network-mode reload-managed'
+	echo 'APPLY_ACCEPTED=1'
+}
+
+apply_layout() {
+	pxe_port="$1"
+	reload_mode="$2"
+	acquire_lock
+	backup_configs
+	stop_pxe_data_plane
+	stage="$(stage_configs "$pxe_port")"
+	install_staged_configs "$stage"
+	write_pxe_snippet "$pxe_port"
+	uci set xg040g-management.pxe.port="$pxe_port"
+	if [ "$pxe_port" = 'none' ]; then
+		uci set xg040g-management.pxe.allow_uplink='0'
+	fi
+	uci set xg040g-management.main.schema_version="$SCHEMA_VERSION"
+	uci commit xg040g-management
+	/usr/sbin/xg040g-pxe-uplink sync --no-reload
 	uci -q delete uhttpd.kvmboot || true
 	uci commit uhttpd
 	/etc/init.d/xg040g-pxe-http enable >/dev/null 2>&1 || true
+
+	case "$reload_mode" in
+		none)
+			write_apply_status 'saved' 'Network topology saved without reload.'
+			;;
+		defer)
+			trap - EXIT INT TERM
+			rmdir "$LOCK_DIR" 2>/dev/null || true
+			schedule_reload
+			;;
+		now)
+			trap - EXIT INT TERM
+			rmdir "$LOCK_DIR" 2>/dev/null || true
+			reload_managed
+			;;
+	esac
+}
+
+port_carrier() {
+	port="$1"
+	[ -r "/sys/class/net/$port/carrier" ] && cat "/sys/class/net/$port/carrier" || echo 0
+}
+
+port_master() {
+	port="$1"
+	if [ -L "/sys/class/net/$port/master" ]; then
+		basename "$(readlink "/sys/class/net/$port/master")"
+	else
+		echo '-'
+	fi
 }
 
 status() {
+	pxe_port="$(current_pxe_port)"
 	echo "SCHEMA_VERSION=$(uci -q get xg040g-management.main.schema_version || echo 0)"
 	echo "HOSTNAME=$(uci -q get system.@system[0].hostname || true)"
 	echo "MANAGEMENT_MAC=$(uci -q get xg040g-management.main.management_mac || true)"
+	echo "PXE_PORT=$pxe_port"
+	[ "$pxe_port" = 'none' ] && echo 'PXE_ACTIVE=0' || echo 'PXE_ACTIVE=1'
 	echo "LAN_PORTS=$(uci -q get network.br_lan.ports || true)"
 	echo "PXE_PORTS=$(uci -q get network.br_pxe.ports || true)"
+	for port in $ALL_PORTS; do
+		echo "PORT_${port}_CARRIER=$(port_carrier "$port")"
+		echo "PORT_${port}_MASTER=$(port_master "$port")"
+	done
 	/usr/sbin/xg040g-pxe-uplink status
+	[ -f "$APPLY_STATUS" ] && cat "$APPLY_STATUS"
+	return 0
 }
+
+parse_reload_mode() {
+	reload_mode='now'
+	force=0
+	for arg in "$@"; do
+		case "$arg" in
+			--force) force=1 ;;
+			--no-reload) reload_mode='none' ;;
+			--defer-reload) reload_mode='defer' ;;
+			*) usage >&2; exit 64 ;;
+		esac
+	done
+	[ "$force" = '1' ] || {
+		echo 'Refusing to replace network configuration without --force.' >&2
+		exit 64
+	}
+}
+
+[ "${XG040G_NETWORK_MODE_LIBRARY:-0}" = '1' ] && return 0
 
 cmd="${1:-status}"
 case "$cmd" in
 	status)
 		status
 		;;
+	set-pxe-port)
+		pxe_port="${2:-}"
+		valid_pxe_port "$pxe_port" || {
+			echo 'Invalid PXE port. Use none, lan2, lan3, lan4 or eth1.' >&2
+			exit 64
+		}
+		shift 2
+		parse_reload_mode "$@"
+		apply_layout "$pxe_port" "$reload_mode"
+		[ "$reload_mode" = 'defer' ] || status
+		;;
 	apply-default)
-		force=0
-		reload=1
 		shift
-		for arg in "$@"; do
-			case "$arg" in
-				--force) force=1 ;;
-				--no-reload) reload=0 ;;
-				*) usage >&2; exit 64 ;;
-			esac
-		done
-		[ "$force" = '1' ] || { echo 'Refusing to replace network configuration without --force.' >&2; exit 64; }
-		backup_configs
+		parse_reload_mode "$@"
+		acquire_lock
 		select_identity
-		write_network
-		write_dhcp
-		write_firewall
-		write_uhttpd
-		uci set xg040g-management.main.schema_version="$SCHEMA_VERSION"
-		uci commit xg040g-management
-		/usr/sbin/xg040g-pxe-uplink sync --no-reload
-		if [ "$reload" = '1' ]; then
-			/etc/init.d/network restart >/dev/null 2>&1
-			/etc/init.d/dnsmasq restart >/dev/null 2>&1
-			/etc/init.d/firewall restart >/dev/null 2>&1
-			/etc/init.d/uhttpd restart >/dev/null 2>&1
-			/etc/init.d/xg040g-pxe-http restart >/dev/null 2>&1
-			/etc/init.d/avahi-daemon restart >/dev/null 2>&1
-			/etc/init.d/xg040g-autoip restart >/dev/null 2>&1
-		fi
-		status
+		trap - EXIT INT TERM
+		rmdir "$LOCK_DIR" 2>/dev/null || true
+		apply_layout 'none' "$reload_mode"
+		[ "$reload_mode" = 'defer' ] || status
+		;;
+	reload-managed)
+		reload_managed
 		;;
 	*)
 		usage >&2

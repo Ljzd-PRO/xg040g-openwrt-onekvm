@@ -3,7 +3,7 @@ param(
     [ValidateSet('Create', 'Status', 'Cleanup')]
     [string]$Action = 'Status',
     [string]$AdapterDescription = 'Intel(R) Ethernet Connection (17) I219-V',
-    [string]$SwitchName = 'XG040G-PXE-LAN4',
+    [string]$SwitchName = 'XG040G-PXE-PORT',
     [string]$UefiVmName = 'XG040G-PXE-UEFI-VERIFY',
     [string]$BiosVmName = 'XG040G-PXE-BIOS-VERIFY',
     [string]$HostAddress = '10.40.0.2',

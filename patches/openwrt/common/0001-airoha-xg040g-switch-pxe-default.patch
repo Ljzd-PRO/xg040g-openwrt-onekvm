@@ -2,7 +2,7 @@ diff --git a/target/linux/airoha/an7581/base-files/etc/board.d/02_network b/targ
 index bcc22c0..a194e74 100644
 --- a/target/linux/airoha/an7581/base-files/etc/board.d/02_network
 +++ b/target/linux/airoha/an7581/base-files/etc/board.d/02_network
-@@ -15,10 +15,15 @@ an7581_setup_interfaces()
+@@ -15,10 +15,12 @@ an7581_setup_interfaces()
  	airoha,an7581-evb)
  		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "eth1"
  		;;
@@ -12,15 +12,12 @@ index bcc22c0..a194e74 100644
  		ucidef_set_interfaces_lan_wan "lan2 lan3 lan4" "eth1"
  		;;
 +	nokia,xg-040g-md-tcboot)
-+		ucidef_set_interface_lan "lan2 lan3 eth1" dhcp
-+		ucidef_set_interface "pxe" \
-+			device "lan4" protocol static \
-+			ipaddr "10.40.0.1" netmask "255.255.255.0"
++		ucidef_set_interface_lan "lan2 lan3 lan4 eth1" dhcp
 +		;;
  	gemtek,w1700k-ubi)
  		ucidef_set_interfaces_lan_wan "lan2 lan3 lan4" "wan"
  		;;
-@@ -38,13 +43,17 @@ an7581_xg040g_ensure_mac()
+@@ -38,13 +40,17 @@ an7581_xg040g_ensure_mac()
  an7581_xg040g_ensure_mac()
  {
  	local board="$1"
@@ -39,7 +36,7 @@ index bcc22c0..a194e74 100644
  		;;
  	*)
  		return 0
-@@ -63,8 +72,13 @@ an7581_xg040g_ensure_mac()
+@@ -63,8 +69,13 @@ an7581_xg040g_ensure_mac()
  
  	lan_mac="$(macaddr_add "$mac" 1)"
  

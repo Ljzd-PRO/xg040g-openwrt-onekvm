@@ -5,4 +5,5 @@ config core 'main'
 	option hostname ''
 
 config pxe 'pxe'
+	option port 'none'
 	option allow_uplink '0'
