@@ -46,18 +46,11 @@ implicitly during a build.
 
 ## Build modes
 
-Default `isolated` mode copies the pinned OpenWrt submodule into a Docker work
-directory and builds there. This keeps the submodule clean and works on macOS,
-Linux and WSL2.
-
-Linux users can opt into direct source mode:
-
-```bash
-./scripts/build.sh onekvm --source-mode direct --jobs 10
-```
-
-Direct mode uses `upstream/openwrt` as `/work/openwrt`; it is intentionally
-disabled on the default case-insensitive macOS filesystem.
+The required `isolated` mode copies the pinned OpenWrt submodule into a Docker
+work directory and applies the common and profile-specific patch series there.
+This keeps the submodule clean and works on macOS, Linux and WSL2. Direct mode
+is rejected for both profiles because it cannot provide the same disposable,
+reproducible patch boundary.
 
 ## GitHub Actions
 

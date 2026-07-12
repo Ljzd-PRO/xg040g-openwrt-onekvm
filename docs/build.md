@@ -38,8 +38,8 @@ cd xg040g-openwrt-onekvm
 - `--output PATH`：指定产物目录。
 - `--jobs N`：并行任务数。
 - `--incremental`：保留 build/staging 目录，仅限本地开发。
-- `--source-mode isolated`：默认，在 Docker volume 中建立本地源码副本。
-- `--source-mode direct`：Linux 上直接使用 `upstream/openwrt`。
+- `--source-mode isolated`：默认且唯一受支持的模式，在 Docker volume 中建立
+  本地源码副本并应用公共/profile 补丁。
 - `--offline`：禁止获取缺失 submodule 或 feed commit；包源码也必须已缓存。
 - `--allow-dirty`：允许修改后的 submodule，仅限本地调试。
 
@@ -73,7 +73,8 @@ BUILD_VERBOSITY=sc ./scripts/build.sh onekvm --jobs 1 --incremental
 OpenWrt 随后走标准 unpack/patch 流程，因此 submodule 本身不会被修改，全部
 兼容补丁也会真实应用到 disposable build tree。
 
-`onekvm` profile 还会按顺序应用 `patches/openwrt/onekvm/`、
+两个 profile 都会应用 `patches/openwrt/common/`。`onekvm` profile 还会按
+顺序应用 `patches/openwrt/onekvm/`、
 `patches/packages/onekvm/` 和 `patches/luci/onekvm/`。这些补丁只进入隔离构建
 树，不会改动 submodule 或固定 feeds；`minimal` 不应用它们。
 

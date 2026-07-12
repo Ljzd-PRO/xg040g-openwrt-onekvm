@@ -58,3 +58,15 @@ LuCI 软件包页面只对上传后固定位置 `/tmp/upload.apk` 的本地 APK 
 
 `/etc/config/one-kvm` 和整个 `/etc/one-kvm/` 都列入 sysupgrade/包升级保留
 范围。APK 升级完成后，也只有服务原本启用时才自动重启。
+
+## 数据重置与 PXE 上游
+
+LuCI One-KVM 页面提供“重置 One-KVM 数据”。操作前必须勾选警告确认，RPC
+还要求固定确认值 `RESET`。它只删除并以 `0700` 重建真实目录
+`/etc/one-kvm`，会清除登录账号、数据库、会话、证书、内部设置和更新缓存；
+不会删除 `/etc/config/one-kvm`、ROM 程序、KVMSTORE、PXE 文件或 rclone
+配置。目录是符号链接或 One-KVM 使用自定义数据目录时，重置会被拒绝。
+
+同一页面还可控制 LAN4 PXE 客户端的上游访问。默认关闭，只允许本地
+DHCP/TFTP/HTTP；开启后创建单向 `pxe -> lan` 转发并在管理出口做 NAT，
+不会开放上游到 PXE 子网或 PXE 到设备管理端口的访问。

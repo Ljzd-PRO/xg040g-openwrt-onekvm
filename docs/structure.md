@@ -53,6 +53,8 @@
 | `package/libyuv/`、`package/libx265/` | 固定版本的本地多媒体依赖。 |
 | `package/gostc/`、`package/easytier-core/` | 固定哈希和 ELF 属性检查的 AArch64 扩展程序。 |
 | `package/xg040g-kvm-support/` | host-only KVM-lite 辅助脚本：UVC、CH9329、PXE/rclone helper 等。 |
+| `package/xg040g-switch-management/` | DHCP 管理交换桥、IPv4LL/mDNS、LAN4 PXE 隔离、网络迁移与恢复 helper。 |
+| `patches/openwrt/common/` | 两个 profile 共用的 XG-040G-MD 默认交换机/PXE 源码补丁。 |
 | `patches/*/onekvm/` | 仅完整版 profile 应用的 OpenWrt、feeds 与 LuCI 兼容补丁。 |
 
 One-KVM 包不要直接软链到 `upstream/one-kvm`。OpenWrt 的标准流程需要在临时
@@ -208,7 +210,7 @@ git push origin vYYYY.MM.DD-rc1
 - `Tracked changes found in submodule`：不要直接在 submodule 中开发；需要临时
   调试时用 `--allow-dirty`，正式提交前还原或形成上游补丁。
 - CI 中 shellcheck 失败、本地没失败：本地可能没装 shellcheck。按 CI 日志修。
-- macOS direct mode 不可用：默认大小写不敏感文件系统不适合 OpenWrt 直接构建，
-  使用默认 isolated 模式。
+- `--source-mode direct` 被拒绝：两个 profile 都依赖只应用到一次性工作树的
+  公共补丁，使用默认 isolated 模式。
 - GitHub Source ZIP 不能复现：它不包含 submodule 内容。使用
   `git clone --recurse-submodules` 或 Release 的 `source-with-submodules.tar.zst`。

@@ -17,14 +17,21 @@
 推荐先通过 SSH 上传到 `/tmp`，执行镜像兼容性检查：
 
 ```bash
-scp xg040g-onekvm-sysupgrade.bin root@192.168.1.1:/tmp/
-ssh root@192.168.1.1
+scp xg040g-onekvm-sysupgrade.bin root@xg040g-xxxxxx.local:/tmp/
+ssh root@xg040g-xxxxxx.local
 sysupgrade -T /tmp/xg040g-onekvm-sysupgrade.bin
 sysupgrade /tmp/xg040g-onekvm-sysupgrade.bin
 ```
 
-默认不使用 `-n`，以保留已有密码与网络配置。升级期间不要刷新页面；设备
-通常需要约两到三分钟恢复网络。
+默认不使用 `-n`，以保留密码、One-KVM 数据和其他应用配置。新网络 schema
+首次启动时会备份并强制替换旧的 `network`、`dhcp` 和 `firewall`，因此升级前
+应让接入 LAN2/LAN3/2.5G 的管理主机准备 DHCP 或 IPv4LL。升级期间不要刷新
+页面；设备通常需要约两到三分钟恢复网络。
+
+升级后优先从上游 DHCP 租约查找设备，或访问
+`xg040g-<管理 MAC 后六位>.local`。无 DHCP 时等待约 15 秒，由 IPv4LL 和
+同一 `.local` 名称管理。`192.168.1.1` 只保留给 LAN2 failsafe 与 tcboot，
+不再是正常系统的固定地址。详见[网络与恢复说明](network-recovery.md)。
 
 ## 原厂固件首次刷入
 
@@ -57,4 +64,3 @@ ls /sys/class/udc
 ```
 
 预期看到四个 xHCI root hub，且 `/sys/class/udc` 为空。
-

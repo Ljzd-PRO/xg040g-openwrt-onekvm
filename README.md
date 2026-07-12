@@ -21,7 +21,8 @@ rclone/WebDAV 缓存提供。AN7581 UDC/OTG 不在受支持功能中。
 
 在 USB3 `KVMSTORE`、物理 PXE 客户端和真实 WebDAV remote 完成闭环前，
 自动发布的固件均标记为 prerelease。当前实测记录见
-[2026-07-12 full-profile hardware validation](docs/hardware-validation-20260712.md)。
+[2026-07-12 full-profile hardware validation](docs/hardware-validation-20260712.md)
+和 [2026-07-13 network/recovery validation](docs/hardware-validation-20260713-network-recovery.md)。
 
 ## 固件配置
 
@@ -33,6 +34,19 @@ rclone/WebDAV 缓存提供。AN7581 UDC/OTG 不在受支持功能中。
 两种配置均为 host-only，不包含 `kmod-usb-mtu3` 或 USB gadget 包。
 AN7581 没有可用的硬件视频编码路径；完整版只提供 H.264、H.265、VP8、VP9
 软件编码，实际实时分辨率和帧率受约 320 MiB 内存及 Cortex-A53 CPU 限制。
+
+## 默认网络
+
+- `lan2 + lan3 + 2.5G` 组成透明管理交换机，上游 DHCP 为设备分配管理地址。
+- 设备同时发布 `xg040g-<管理 MAC 后六位>.local`；无 DHCP 约 15 秒后启用
+  RFC 3927 IPv4LL，并继续使用同一 `.local` 名称。
+- `lan4` 永久独立为 PXE 端口，地址 `10.40.0.1/24`。默认只访问本地
+  KVMSTORE；可在 LuCI One-KVM 页面临时允许经 NAT 访问上游。
+- OpenWrt failsafe 的按键等待窗口为 12 秒，仅使用 LAN2 和
+  `192.168.1.1/24`。最终恢复入口仍是 tcboot Web U-Boot。
+
+详细拓扑、迁移行为与四级恢复流程见
+[网络与恢复说明](docs/network-recovery.md)。
 
 ## 快速构建
 
@@ -54,9 +68,8 @@ cd xg040g-openwrt-onekvm
 ./scripts/build.sh onekvm
 ```
 
-默认 `isolated` 模式从 submodule 建立本地、无网络的 Docker 工作副本。
-Linux 还可使用 `--source-mode direct` 直接在 OpenWrt submodule 中构建；
-macOS 默认文件系统大小写不敏感，因此必须使用 isolated 模式。
+构建固定使用 `isolated` 模式，从 submodule 建立一次性的 Docker 工作副本并
+应用项目补丁。脚本不会直接修改或构建 `upstream/openwrt` submodule。
 
 更完整的参数和缓存说明见 [构建文档](docs/build.md)。
 准备发布或 fork 前，请先看 [仓库与 GitHub 发布说明](docs/repository.md)。
@@ -85,7 +98,8 @@ Cookie 或原厂备份。具体流程和参考资料见 [刷机文档](docs/flas
 ## One-KVM 运行方式
 
 One-KVM 默认监听 `8080`，但服务默认关闭，避免未连接采集卡和 CH9329 时
-反复重启。诊断用 ustreamer 默认关闭，启用后使用 `8081`。
+反复重启。PXE HTTP 使用 LAN4 的 `10.40.0.1:8081`；诊断用 ustreamer
+默认关闭，启用后使用 `8082`。
 
 ```bash
 uci set one-kvm.main.enabled='1'
