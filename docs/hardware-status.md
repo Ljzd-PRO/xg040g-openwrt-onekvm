@@ -1,6 +1,6 @@
 # 硬件与功能验证状态
 
-更新时间：2026-07-13。
+更新时间：2026-07-14。
 
 ## 已验证
 
@@ -8,8 +8,11 @@
 - LuCI、uhttpd、Dropbear、保留配置 sysupgrade 正常。
 - LuCI Statistics、collectd CPU/内存/负载/接口统计和 AN7581 `cpu-thermal`
   温度 RRD 已完成保留配置刷机与实机图表验证。
-- 全核 RPS、默认 1200 MHz 的 PLL 控制后端和“交换性能”LuCI 已进入当前源码；
-  新固件构建和实机验证完成前不计入已发布 `v2026.07.13-rc1` 的能力。
+- 全核 RPS 已在实机上确认 `eth0`/`eth1` 共 64 个 RX 队列的掩码全为 `f`，
+  应用期间 SSH 和四口桥接正常。测试未提交 UCI，不涉及 PLL 模块。
+- 首个性能实验固件在保留配置刷入后失去管理网络，已通过 tcboot、稳定
+  固件和刷机前备份完整恢复。由于 factory 重建 overlay 后无法保留失败启动日志，
+  不对根因作无证据结论；修正后默认 1200 MHz 路径完全不加载 PLL 模块。
 - 两个 xHCI 控制器工作，系统显示四个 USB2/USB3 root hub。
 - host-only 状态下 `/sys/class/udc` 为空。
 - One-KVM 0.2.3 完整运行时、LuCI 版本状态、默认停用和 ROM 恢复均已验证。
@@ -46,6 +49,8 @@
 FRPC 独立管理的本轮结果见
 [2026-07-13 FRPC validation](hardware-validation-20260713-frpc.md)。持久化 PXE
 端口切换见 [2026-07-13 PXE port v2 validation](hardware-validation-20260713-pxe-port-v2.md)。
+性能固件恢复与安全收敛记录见
+[2026-07-14 performance recovery](hardware-validation-20260714-performance-recovery.md)。
 
 ## 不支持
 

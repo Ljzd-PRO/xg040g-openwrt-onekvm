@@ -59,7 +59,7 @@
 | `package/xg040g-kvm-support/` | host-only KVM-lite 辅助脚本：UVC、CH9329、PXE/rclone helper 等。 |
 | `package/xg040g-switch-management/` | DHCP 管理交换桥、IPv4LL/mDNS、持久化 PXE 端口选择、网络迁移与恢复 helper。 |
 | `package/xg040g-monitoring-defaults/` | LuCI/collectd 统计与 AN7581 温度采集默认配置。 |
-| `package/kmod-airoha-an7581-oc/` | 仅限 tcboot 机型、加载时不改频的 AN7581 PLL 模块。 |
+| `package/kmod-airoha-an7581-oc/` | 仅限 tcboot 机型、不自动加载、加载时不改频的 AN7581 PLL 模块。 |
 | `package/xg040g-performance/` | 默认 1200 MHz 的 CPU 策略、温控回退、RPS 状态与 RPC。 |
 | `package/luci-app-xg040g-performance/` | “系统 -> 交换性能”页面及简体中文翻译。 |
 | `patches/openwrt/common/` | 两个 profile 共用的 XG-040G-MD 默认交换机/PXE 源码补丁。 |
