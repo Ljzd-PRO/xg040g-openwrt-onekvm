@@ -52,6 +52,7 @@ node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/
 node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/cloud-pxe.js
 node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/pxe.js
 node --check package/luci-app-xg040g-performance/htdocs/luci-static/resources/view/xg040g-performance/overview.js
+sh scripts/test-performance-safety.sh
 jq empty package/luci-app-one-kvm/root/usr/share/luci/menu.d/luci-app-one-kvm.json
 jq empty package/luci-app-one-kvm/root/usr/share/rpcd/acl.d/luci-app-one-kvm.json
 jq empty package/luci-app-xg040g-performance/root/usr/share/luci/menu.d/luci-app-xg040g-performance.json
@@ -206,7 +207,13 @@ grep -Eq '^PKG_LICENSE:=GPL-2.0-only$' package/kmod-airoha-an7581-oc/Makefile
 grep -Eq '^PKG_LICENSE:=GPL-3.0-only$' package/xg040g-performance/Makefile
 grep -Eq '^PKG_LICENSE:=Apache-2.0$' package/luci-app-xg040g-performance/Makefile
 grep -q 'nokia,xg-040g-md-tcboot' package/kmod-airoha-an7581-oc/src/airoha-an7581-oc.c
-grep -q 'Loading this module never changes' package/kmod-airoha-an7581-oc/Makefile
+grep -q 'never auto-loaded' package/kmod-airoha-an7581-oc/Makefile
+if grep -q 'AUTOLOAD' package/kmod-airoha-an7581-oc/Makefile; then
+	echo 'PLL module must not define AUTOLOAD' >&2
+	exit 1
+fi
+grep -Fq "modprobe \"\$MODULE\"" package/xg040g-performance/files/usr/sbin/xg040g-cpuctl
+grep -q 'pll_driver_loaded' package/xg040g-performance/files/usr/sbin/xg040g-cpuctl
 grep -q "option overclock '0'" package/xg040g-performance/files/etc/config/xg040g-performance
 grep -q "option frequency '1200'" package/xg040g-performance/files/etc/config/xg040g-performance
 grep -q "option thermal_revert '85'" package/xg040g-performance/files/etc/config/xg040g-performance

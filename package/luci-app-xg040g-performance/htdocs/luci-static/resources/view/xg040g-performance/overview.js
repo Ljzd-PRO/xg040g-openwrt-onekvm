@@ -53,8 +53,10 @@ function statusTable(status) {
 	const eth1 = interfaces.eth1 || {};
 	const bridges = status.bridges || {};
 	const active = status.active_mhz > 1200;
+	const driverLoaded = !!status.pll_driver_loaded;
 	const rows = [
-		[ _('Actual CPU frequency'), mhz(status.actual_mhz) ],
+		[ _('Actual CPU frequency'), driverLoaded ? mhz(status.actual_mhz) : _('Stock boot policy (PLL driver not loaded)') ],
+		[ _('PLL control driver'), driverLoaded ? _('Loaded on demand') : _('Not loaded') ],
 		[ _('Saved startup policy'), status.configured_overclock ? _('%d MHz overclock').format(status.configured_mhz) : _('Stock 1200 MHz') ],
 		[ _('Current overclock state'), active ? _('Active') : _('Disabled') ],
 		[ _('SoC temperature'), temperature(status.temperature_millic) ],
@@ -128,7 +130,7 @@ return view.extend({
 				'autocomplete': 'off'
 			});
 			ui.showModal(_('Confirm experimental overclock'), [
-				E('p', {}, _('Overclocking changes the AN7581 CPU PLL without changing voltage. It may cause overheating, data loss or an unreachable device. The firmware will monitor temperature, but this cannot remove all risk.')),
+				E('p', {}, _('Overclocking loads the opt-in PLL driver and changes the AN7581 CPU frequency without changing voltage. It may cause overheating, data loss or an unreachable device. The firmware will monitor temperature, but this cannot remove all risk.')),
 				E('p', {}, _('Type OVERCLOCK to apply %d MHz and save it for future boots.').format(frequency)),
 				confirmation,
 				E('div', { 'class': 'right' }, [
@@ -164,6 +166,7 @@ return view.extend({
 		return E([], [
 			E('h2', {}, _('Switch Performance')),
 			E('p', {}, _('Full-core RPS can distribute different receive flows across all four CPU cores. It does not turn the 2.5G port into a hardware-switched port and does not accelerate a single flow across multiple cores.')),
+			E('p', {}, _('At the stock 1200 MHz policy, the experimental PLL driver remains unloaded and no CPU clock registers are accessed.')),
 			statusNode,
 			E('h3', {}, _('Packet steering')),
 			E('div', { 'class': 'cbi-section' }, [

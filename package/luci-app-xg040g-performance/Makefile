@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-xg040g-performance
 PKG_VERSION:=20260713
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_MAINTAINER:=XG-040G-MD OpenWrt One-KVM contributors
 PKG_LICENSE:=Apache-2.0
 

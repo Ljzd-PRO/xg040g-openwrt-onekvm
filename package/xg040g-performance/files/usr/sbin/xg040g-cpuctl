@@ -2,15 +2,17 @@
 # shellcheck disable=SC3043 # BusyBox ash provides local variables.
 set -eu
 
-SYSFS='/sys/kernel/xg040g_cpu'
-POLICY='/sys/devices/system/cpu/cpufreq/policy0'
-STATE_DIR='/etc/xg040g-performance'
+SYSFS="${XG040G_CPU_SYSFS:-/sys/kernel/xg040g_cpu}"
+POLICY="${XG040G_CPU_POLICY:-/sys/devices/system/cpu/cpufreq/policy0}"
+THERMAL_ROOT="${XG040G_THERMAL_ROOT:-/sys/class/thermal}"
+MODULE='airoha-an7581-oc'
+STATE_DIR="${XG040G_PERFORMANCE_STATE_DIR:-/etc/xg040g-performance}"
 ACTIVE="$STATE_DIR/cpu-overclock-active"
-LEGACY_ACTIVE='/etc/xg040g-switch/cpu-overclock-active'
-LOCK_DIR='/var/lock/xg040g-cpuctl.lock'
+LEGACY_ACTIVE="${XG040G_LEGACY_ACTIVE:-/etc/xg040g-switch/cpu-overclock-active}"
+LOCK_DIR="${XG040G_CPU_LOCK_DIR:-/var/lock/xg040g-cpuctl.lock}"
 
-# shellcheck disable=SC1091 # Supplied by libubox on OpenWrt.
-. /usr/share/libubox/jshn.sh
+# shellcheck disable=SC1090,SC1091 # Supplied by libubox on OpenWrt.
+. "${XG040G_JSHN_LIB:-/usr/share/libubox/jshn.sh}"
 
 read_value() {
 	cat "$1" 2>/dev/null || echo "$2"
@@ -30,7 +32,7 @@ valid_frequency() {
 
 temperature_millic() {
 	local zone type value
-	for zone in /sys/class/thermal/thermal_zone*; do
+	for zone in "$THERMAL_ROOT"/thermal_zone*; do
 		[ -r "$zone/temp" ] || continue
 		type="$(cat "$zone/type" 2>/dev/null || true)"
 		case "$type" in
@@ -43,7 +45,7 @@ temperature_millic() {
 				;;
 		esac
 	done
-	value="$(read_value /sys/class/thermal/thermal_zone0/temp 0)"
+	value="$(read_value "$THERMAL_ROOT/thermal_zone0/temp" 0)"
 	if valid_integer "$value" && [ "$value" -gt 0 ]; then
 		echo "$value"
 	else
@@ -65,7 +67,7 @@ thermal_limit() {
 }
 
 acquire_lock() {
-	mkdir -p /var/lock
+	mkdir -p "${LOCK_DIR%/*}"
 	if ! mkdir "$LOCK_DIR" 2>/dev/null; then
 		echo 'Another CPU policy change is already running.' >&2
 		exit 75
@@ -84,19 +86,52 @@ write_active_marker() {
 	mv "$tmp" "$ACTIVE"
 }
 
-set_stock_unlocked() {
+driver_loaded() {
+	[ -d "$SYSFS" ]
+}
+
+load_driver() {
 	local actual
+	if ! driver_loaded; then
+		modprobe "$MODULE" || {
+			echo 'Unable to load the opt-in AN7581 PLL driver.' >&2
+			return 1
+		}
+	fi
 	[ -d "$SYSFS" ] || {
-		echo 'AN7581 PLL driver is unavailable.' >&2
+		echo 'AN7581 PLL driver loaded without its sysfs interface.' >&2
 		return 1
 	}
 	actual="$(read_value "$SYSFS/actual_mhz" 0)"
-	if [ "$actual" != '1200' ]; then
-		if ! printf '1200\n' > "$SYSFS/requested_mhz"; then
-			echo 'Failed to restore the stock 1200 MHz frequency.' >&2
+	case "$actual" in
+		1200|1300|1400) ;;
+		*)
+			echo "Unsafe PLL readback after driver load: ${actual} MHz." >&2
 			return 1
-		fi
+			;;
+	esac
+}
+
+set_stock_unlocked() {
+	local actual
+	if ! driver_loaded; then
+		rm -f "$ACTIVE" "$LEGACY_ACTIVE"
+		return 0
 	fi
+	actual="$(read_value "$SYSFS/actual_mhz" 0)"
+	case "$actual" in
+		1200) ;;
+		1300|1400)
+			if ! printf '1200\n' > "$SYSFS/requested_mhz"; then
+				echo 'Failed to restore the stock 1200 MHz frequency.' >&2
+				return 1
+			fi
+			;;
+		*)
+			echo "Refusing to write PLL after unsafe readback: ${actual} MHz." >&2
+			return 1
+			;;
+	esac
 	printf '0\n' > "$SYSFS/allow_overclock"
 	rm -f "$ACTIVE" "$LEGACY_ACTIVE"
 	actual="$(read_value "$SYSFS/actual_mhz" 0)"
@@ -104,6 +139,7 @@ set_stock_unlocked() {
 		echo "Stock frequency readback failed: ${actual} MHz." >&2
 		return 1
 	}
+	modprobe -r "$MODULE" >/dev/null 2>&1 || true
 }
 
 validate_thermal_state() {
@@ -129,6 +165,7 @@ set_overclock_unlocked() {
 	local target actual
 	target="$1"
 	validate_thermal_state || return 1
+	load_driver || return 1
 	printf '1\n' > "$SYSFS/allow_overclock"
 	if ! printf '%s\n' "$target" > "$SYSFS/requested_mhz"; then
 		set_stock_unlocked || true
@@ -209,6 +246,7 @@ add_interface_status() {
 status() {
 	local governor available current actual requested allowed error temp configured configured_oc
 	local revert emergency active steering value
+	local pll_driver stock_default
 	governor="$(read_value "$POLICY/scaling_governor" unavailable)"
 	available="$(read_value "$POLICY/scaling_available_frequencies" '')"
 	current="$(read_value "$POLICY/scaling_cur_freq" 0)"
@@ -222,6 +260,8 @@ status() {
 	revert="$(thermal_limit thermal_revert 85 70 95)"
 	emergency="$(thermal_limit thermal_emergency 95 80 110)"
 	active="$(read_value "$ACTIVE" 0)"
+	pll_driver=0
+	driver_loaded && pll_driver=1
 	steering="$(uci -q get network.globals.packet_steering || \
 		uci -q get 'network.@globals[0].packet_steering' || echo 2)"
 	case "$steering" in 0|1|2) ;; *) steering=2 ;; esac
@@ -236,12 +276,16 @@ status() {
 	valid_integer "$active" || active=0
 	case "$allowed" in 0|1) ;; *) allowed=0 ;; esac
 	case "$configured_oc" in 0|1) ;; *) configured_oc=0 ;; esac
+	stock_default=0
+	[ "$pll_driver" = '0' ] && [ "$configured_oc" = '0' ] && stock_default=1
 
 	json_init
 	json_add_boolean cpufreq_available "$([ -d "$POLICY" ] && echo 1 || echo 0)"
 	json_add_string governor "$governor"
 	json_add_string available_frequencies "$available"
 	json_add_int current_khz "$current"
+	json_add_boolean pll_driver_loaded "$pll_driver"
+	json_add_boolean stock_default "$stock_default"
 	json_add_int actual_mhz "$actual"
 	json_add_int requested_mhz "$requested"
 	json_add_boolean overclock_allowed "$allowed"

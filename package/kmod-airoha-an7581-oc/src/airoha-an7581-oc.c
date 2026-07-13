@@ -205,6 +205,7 @@ static const struct attribute_group xg040g_attr_group = {
 
 static int __init xg040g_oc_init(void)
 {
+	unsigned int actual;
 	int ret;
 
 	if (!of_machine_is_compatible("nokia,xg-040g-md-tcboot"))
@@ -218,7 +219,14 @@ static int __init xg040g_oc_init(void)
 		goto err_unmap;
 	}
 
-	oc.requested_mhz = xg040g_actual_mhz();
+	actual = xg040g_actual_mhz();
+	if (actual != 1200 && actual != 1300 && actual != 1400) {
+		pr_err("xg040g-an7581-oc: unexpected PLL readback %u MHz; refusing to load\n",
+		       actual);
+		ret = -ERANGE;
+		goto err_unmap;
+	}
+	oc.requested_mhz = actual;
 	oc.kobj = kobject_create_and_add("xg040g_cpu", kernel_kobj);
 	if (!oc.kobj) {
 		ret = -ENOMEM;
@@ -228,8 +236,8 @@ static int __init xg040g_oc_init(void)
 	if (ret)
 		goto err_kobj;
 
-	pr_info("xg040g-an7581-oc: loaded safely at %u MHz; overclock locked\n",
-		xg040g_actual_mhz());
+	pr_info("xg040g-an7581-oc: manually loaded at %u MHz; overclock locked\n",
+		actual);
 	return 0;
 
 err_kobj:
@@ -244,9 +252,15 @@ err_unmap:
 
 static void __exit xg040g_oc_exit(void)
 {
-	if (xg040g_actual_mhz() != 1200) {
+	unsigned int actual = xg040g_actual_mhz();
+
+	if (actual == 1300 || actual == 1400) {
 		WRITE_ONCE(oc.allow_overclock, true);
-		xg040g_set_frequency(1200);
+		if (xg040g_set_frequency(1200))
+			pr_crit("xg040g-an7581-oc: unable to restore 1200 MHz while unloading\n");
+	} else if (actual != 1200) {
+		pr_crit("xg040g-an7581-oc: unsafe %u MHz readback while unloading; no PLL write attempted\n",
+			actual);
 	}
 	sysfs_remove_group(oc.kobj, &xg040g_attr_group);
 	kobject_put(oc.kobj);

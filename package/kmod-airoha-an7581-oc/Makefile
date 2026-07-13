@@ -3,7 +3,7 @@ include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=kmod-airoha-an7581-oc
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_MAINTAINER:=XG-040G-MD OpenWrt One-KVM contributors
 PKG_LICENSE:=GPL-2.0-only
 
@@ -14,12 +14,11 @@ define KernelPackage/airoha-an7581-oc
   TITLE:=Board-gated AN7581 CPU PLL control
   DEPENDS:=@TARGET_airoha_an7581
   FILES:=$(PKG_BUILD_DIR)/airoha-an7581-oc.ko
-  AUTOLOAD:=$(call AutoLoad,95,airoha-an7581-oc)
 endef
 
 define KernelPackage/airoha-an7581-oc/description
   Opt-in, board-gated PLL control for the XG-040G-MD tcboot profile.
-  Loading this module never changes the CPU frequency.
+  The module is never auto-loaded and loading it never changes frequency.
 endef
 
 define Build/Prepare
