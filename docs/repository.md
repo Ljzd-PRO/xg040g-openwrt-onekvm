@@ -9,7 +9,8 @@ development workflows, see `docs/structure.md`.
 
 ## What belongs in GitHub
 
-- `.github/workflows/firmware.yml`: CI build and prerelease publishing.
+- `.github/workflows/firmware.yml`: CI and manually dispatched firmware builds.
+- `.github/workflows/release.yml`: manually dispatched publishing from a verified build run.
 - `configs/`: OpenWrt defconfigs for the supported firmware profiles.
 - `docker/`: pinned build container recipe.
 - `docs/`: build, flash, hardware status and release notes.
@@ -54,11 +55,17 @@ reproducible patch boundary.
 
 ## GitHub Actions
 
-The workflow supports three entry points:
+The build workflow supports two entry points:
 
 - Push to `main`: build the default `onekvm` profile.
 - Manual `workflow_dispatch`: build `minimal`, `onekvm` or `all`.
-- Tag push matching `v*`: build both profiles and publish a prerelease.
+
+Publishing is deliberately separate. Run `Build firmware` with the `all`
+profile, then dispatch `Release firmware` with the successful build run ID,
+the release tag and the prerelease flag. The release workflow requires the
+build run and release workflow to use the same commit. Release notes are read
+from `docs/releases/<tag>.md`; they are never generated from an inline workflow
+template.
 
 Release assets include firmware images, manifests, build metadata, SHA256 sums
 and `source-with-submodules.tar.zst`. The `onekvm` profile additionally exports
@@ -101,11 +108,18 @@ git push -u origin main
 git push --recurse-submodules=check origin main
 ```
 
-To create a prerelease build:
+To create a prerelease build and publish it:
 
 ```bash
-git tag vYYYY.MM.DD-rc1
-git push origin vYYYY.MM.DD-rc1
+# GitHub Actions -> Build firmware -> Run workflow
+# profile: all
+# runner: ubuntu-24.04
+
+# After that run succeeds:
+# GitHub Actions -> Release firmware -> Run workflow
+# tag: vYYYY.MM.DD-rc1
+# build_run_id: the successful Build firmware run ID
+# prerelease: true
 ```
 
 Keep releases as prerelease until USB3 `KVMSTORE` has been validated on

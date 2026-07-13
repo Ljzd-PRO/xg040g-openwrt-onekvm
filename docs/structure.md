@@ -155,6 +155,7 @@ One-KVM gitlink、包 hash、Cargo.lock 和补丁适配应拆成清晰的 packag
 
 - `.github/workflows/validate.yml`
 - `.github/workflows/firmware.yml`
+- `.github/workflows/release.yml`
 - `.github/dependabot.yml`
 - `scripts/package-release.sh`
 - `scripts/create-source-bundle.sh`
@@ -199,15 +200,18 @@ git submodule status --recursive
 ./scripts/validate.sh
 ```
 
-如果要触发 prerelease：
+如果要触发 prerelease，先在 GitHub Actions 手动运行 `Build firmware`，选择
+`profile=all`。两个 profile 和 source bundle 均成功后，再运行
+`Release firmware`，填写版本、前一步的 run ID，并保持 `prerelease=true`。
+发布说明必须预先提交到：
 
-```bash
-git tag vYYYY.MM.DD-rc1
-git push origin main
-git push origin vYYYY.MM.DD-rc1
+```text
+docs/releases/vYYYY.MM.DD-rc1.md
 ```
 
-硬件闭环未完成前，Release 保持 prerelease。
+Release workflow 会确认构建与发布 commit 相同、三个 artifact 齐全且校验值通过，
+然后创建 tag。不要再手动推送发布 tag。硬件闭环未完成前，Release 保持
+prerelease。
 
 ## 故障排查提示
 
