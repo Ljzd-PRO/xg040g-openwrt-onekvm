@@ -59,6 +59,14 @@ grep -Fq 'workflow_dispatch:' .github/workflows/release.yml
 # shellcheck disable=SC2016
 grep -Fq 'docs/releases/$RELEASE_TAG.md' .github/workflows/release.yml
 grep -Fq 'build_run_id:' .github/workflows/release.yml
+if grep -Fq '*.{bin,itb}' .github/workflows/firmware.yml; then
+	echo 'Firmware attestation paths must not use unsupported brace globs.' >&2
+	exit 1
+fi
+# shellcheck disable=SC2016
+grep -Fq 'release/${{ matrix.profile }}/*.bin' .github/workflows/firmware.yml
+# shellcheck disable=SC2016
+grep -Fq 'release/${{ matrix.profile }}/*.itb' .github/workflows/firmware.yml
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT

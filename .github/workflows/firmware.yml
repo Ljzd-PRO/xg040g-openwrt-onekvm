@@ -110,7 +110,9 @@ jobs:
       - name: Attest firmware
         uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4
         with:
-          subject-path: release/${{ matrix.profile }}/*.{bin,itb}
+          subject-path: |
+            release/${{ matrix.profile }}/*.bin
+            release/${{ matrix.profile }}/*.itb
 
       - name: Attest standalone One-KVM APKs
         if: matrix.profile == 'onekvm'
