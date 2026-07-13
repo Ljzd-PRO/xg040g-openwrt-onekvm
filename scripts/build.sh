@@ -254,7 +254,12 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 		local url="$2"
 		local commit="$3"
 		local cache_repo="/feed-cache/${name}.git"
+		local pin_ref="refs/heads/xg040g-pinned"
 		local attempt
+		pin_feed_commit() {
+			git --git-dir="$cache_repo" update-ref "$pin_ref" "$commit"
+			git --git-dir="$cache_repo" symbolic-ref HEAD "$pin_ref"
+		}
 
 		if [[ ! -d "$cache_repo" ]]; then
 			mkdir -p "$cache_repo"
@@ -262,6 +267,7 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 		fi
 
 		if git --git-dir="$cache_repo" cat-file -e "${commit}^{commit}" 2>/dev/null; then
+			pin_feed_commit
 			return 0
 		fi
 		if [[ "$OFFLINE" == "1" ]]; then
@@ -279,6 +285,7 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 			if git --git-dir="$cache_repo" -c http.lowSpeedLimit=1000 \
 				-c http.lowSpeedTime=60 fetch --no-tags --depth=1 origin "$commit" \
 				&& git --git-dir="$cache_repo" cat-file -e "${commit}^{commit}"; then
+				pin_feed_commit
 				return 0
 			fi
 			echo "Feed $name fetch attempt $attempt failed; retrying." >&2

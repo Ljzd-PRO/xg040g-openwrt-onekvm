@@ -98,6 +98,7 @@ done
 prepare_feed_cache() {
 	local name="$1"
 	local source url commit cache_repo attempt
+	local pin_ref="refs/heads/xg040g-pinned"
 
 	source="$(awk -v feed="$name" '$1 == "src-git" && $2 == feed { print $3 }' locks/feeds.conf)"
 	[[ -n "$source" && "$source" == *^* ]] || {
@@ -139,6 +140,10 @@ prepare_feed_cache() {
 		echo "Unable to prepare feed $name at $commit" >&2
 		return 1
 	}
+	# A bare shallow cache with only FETCH_HEAD appears empty to file:// clients.
+	# Keep a named ref so OpenWrt feeds can clone the pinned commit reliably.
+	git --git-dir="$cache_repo" update-ref "$pin_ref" "$commit"
+	git --git-dir="$cache_repo" symbolic-ref HEAD "$pin_ref"
 	printf '%s\n' "$commit"
 }
 
