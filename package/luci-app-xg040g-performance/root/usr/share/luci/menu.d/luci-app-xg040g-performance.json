@@ -1,0 +1,15 @@
+{
+	"admin/system/xg040g-performance": {
+		"title": "Switch Performance",
+		"order": 91,
+		"action": {
+			"type": "view",
+			"path": "xg040g-performance/overview"
+		},
+		"depends": {
+			"acl": [
+				"luci-app-xg040g-performance"
+			]
+		}
+	}
+}

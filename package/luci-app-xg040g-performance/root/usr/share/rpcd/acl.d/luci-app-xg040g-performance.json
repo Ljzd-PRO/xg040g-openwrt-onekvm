@@ -1,0 +1,29 @@
+{
+	"luci-app-xg040g-performance": {
+		"description": "Grant access to XG-040G-MD software-switch performance controls",
+		"read": {
+			"uci": [
+				"network",
+				"xg040g-performance"
+			],
+			"ubus": {
+				"xg040g.performance": [
+					"status"
+				]
+			}
+		},
+		"write": {
+			"uci": [
+				"network",
+				"xg040g-performance"
+			],
+			"ubus": {
+				"xg040g.performance": [
+					"set_steering",
+					"apply_cpu",
+					"restore_stock"
+				]
+			}
+		}
+	}
+}

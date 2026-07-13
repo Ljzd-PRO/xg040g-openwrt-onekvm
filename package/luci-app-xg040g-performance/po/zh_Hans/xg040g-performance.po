@@ -1,0 +1,151 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_Hans\n"
+
+msgid "Switch Performance"
+msgstr "交换性能"
+
+msgid "Unavailable"
+msgstr "不可用"
+
+msgid "%d MHz"
+msgstr "%d MHz"
+
+msgid "%s C"
+msgstr "%s C"
+
+msgid "Disabled"
+msgstr "关闭"
+
+msgid "Automatic"
+msgstr "自动"
+
+msgid "All CPU cores"
+msgstr "全部 CPU 核心"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "Actual CPU frequency"
+msgstr "CPU 实际频率"
+
+msgid "Saved startup policy"
+msgstr "已保存的启动策略"
+
+msgid "%d MHz overclock"
+msgstr "%d MHz 超频"
+
+msgid "Stock 1200 MHz"
+msgstr "原厂 1200 MHz"
+
+msgid "Current overclock state"
+msgstr "当前超频状态"
+
+msgid "Active"
+msgstr "已启用"
+
+msgid "SoC temperature"
+msgstr "SoC 温度"
+
+msgid "Thermal rollback / emergency"
+msgstr "温控回退 / 紧急重启"
+
+msgid "%d C / %d C"
+msgstr "%d C / %d C"
+
+msgid "Kernel driver error"
+msgstr "内核驱动错误"
+
+msgid "Standard cpufreq"
+msgstr "标准 cpufreq"
+
+msgid "Available"
+msgstr "可用"
+
+msgid "Unavailable on tcboot ATF"
+msgstr "tcboot ATF 下不可用"
+
+msgid "Packet steering"
+msgstr "接收数据包分流"
+
+msgid "eth0 RX queues / RPS masks"
+msgstr "eth0 接收队列 / RPS 掩码"
+
+msgid "eth1 RX queues / RPS masks"
+msgstr "eth1 接收队列 / RPS 掩码"
+
+msgid "%d / %s"
+msgstr "%d / %s"
+
+msgid "2.5G link"
+msgstr "2.5G 链路"
+
+msgid "%d Mbit/s, %s"
+msgstr "%d Mbit/s，%s"
+
+msgid "Disconnected"
+msgstr "未连接"
+
+msgid "br-lan members"
+msgstr "br-lan 成员"
+
+msgid "br-pxe members"
+msgstr "br-pxe 成员"
+
+msgid "NET_RX per CPU"
+msgstr "各 CPU 的 NET_RX"
+
+msgid "1200 MHz (stock)"
+msgstr "1200 MHz（原厂）"
+
+msgid "1300 MHz (experimental)"
+msgstr "1300 MHz（实验性）"
+
+msgid "1400 MHz (experimental)"
+msgstr "1400 MHz（实验性）"
+
+msgid "Packet steering settings were applied."
+msgstr "接收数据包分流设置已应用。"
+
+msgid "Stock CPU settings were applied."
+msgstr "原厂 CPU 设置已应用。"
+
+msgid "Confirm experimental overclock"
+msgstr "确认实验性超频"
+
+msgid "Overclocking changes the AN7581 CPU PLL without changing voltage. It may cause overheating, data loss or an unreachable device. The firmware will monitor temperature, but this cannot remove all risk."
+msgstr "超频会在不改变电压的情况下修改 AN7581 CPU PLL，可能造成过热、数据丢失或设备失联。固件会监测温度，但无法消除全部风险。"
+
+msgid "Type OVERCLOCK to apply %d MHz and save it for future boots."
+msgstr "输入 OVERCLOCK 以应用 %d MHz，并保存为后续启动策略。"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "The confirmation text does not match."
+msgstr "确认文字不匹配。"
+
+msgid "The experimental CPU frequency was applied."
+msgstr "实验性 CPU 频率已应用。"
+
+msgid "Apply overclock"
+msgstr "应用超频"
+
+msgid "The CPU was restored to the stock 1200 MHz policy."
+msgstr "CPU 已恢复为原厂 1200 MHz 策略。"
+
+msgid "Full-core RPS can distribute different receive flows across all four CPU cores. It does not turn the 2.5G port into a hardware-switched port and does not accelerate a single flow across multiple cores."
+msgstr "全核 RPS 可以把不同接收数据流分配到四个 CPU 核心，但不会把 2.5G 口变成硬件交换端口，也不会让单条数据流跨多个核心加速。"
+
+msgid "Apply RPS mode"
+msgstr "应用 RPS 模式"
+
+msgid "CPU frequency"
+msgstr "CPU 频率"
+
+msgid "Apply CPU policy"
+msgstr "应用 CPU 策略"
+
+msgid "Restore stock 1200 MHz"
+msgstr "恢复原厂 1200 MHz"
