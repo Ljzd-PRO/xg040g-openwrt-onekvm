@@ -21,6 +21,12 @@ valid_pxe_port() {
 	esac
 }
 
+packet_steering_mode() {
+	mode="$(uci -q get network.globals.packet_steering || \
+		uci -q get 'network.@globals[0].packet_steering' || echo 2)"
+	case "$mode" in 0|1|2) echo "$mode" ;; *) echo 2 ;; esac
+}
+
 current_pxe_port() {
 	port="$(uci -q get xg040g-management.pxe.port || echo none)"
 	valid_pxe_port "$port" || port='none'
@@ -110,6 +116,7 @@ write_network() {
 	pxe_port="$2"
 	mac="$(uci -q get xg040g-management.main.management_mac)"
 	hostname="$(uci -q get xg040g-management.main.hostname)"
+	packet_steering="$(packet_steering_mode)"
 	{
 		cat <<EOF
 config interface 'loopback'
@@ -120,6 +127,7 @@ config interface 'loopback'
 config globals 'globals'
 	option ula_prefix 'auto'
 	option dhcp_default_duid 'auto'
+	option packet_steering '$packet_steering'
 
 config device 'br_lan'
 	option name 'br-lan'
@@ -362,6 +370,7 @@ reload_managed() {
 	if /etc/init.d/network restart >/dev/null 2>&1 && \
 		/etc/init.d/firewall restart >/dev/null 2>&1 && \
 		/etc/init.d/dnsmasq restart >/dev/null 2>&1; then
+		/etc/init.d/packet_steering restart >/dev/null 2>&1 || true
 		pxe_port="$(current_pxe_port)"
 		if [ "$pxe_port" = 'none' ]; then
 			/etc/init.d/xg040g-pxe-http stop >/dev/null 2>&1 || true

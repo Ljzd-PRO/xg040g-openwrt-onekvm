@@ -38,6 +38,10 @@ required_packages=(
 	avahi-autoipd
 	avahi-nodbus-daemon
 	xg040g-switch-management
+	kmod-airoha-an7581-oc
+	xg040g-performance
+	luci-app-xg040g-performance
+	luci-i18n-xg040g-performance-zh-cn
 )
 if [[ "$profile" == "onekvm" ]]; then
 	required_packages+=(
@@ -108,6 +112,9 @@ fi
 
 grep -q '^CONFIG_TARGET_PREINIT_TIMEOUT=12$' "$out_dir/config.buildinfo"
 grep -q '^CONFIG_PACKAGE_xg040g-switch-management=y$' "$out_dir/config.buildinfo"
+grep -q '^CONFIG_PACKAGE_kmod-airoha-an7581-oc=y$' "$out_dir/config.buildinfo"
+grep -q '^CONFIG_PACKAGE_xg040g-performance=y$' "$out_dir/config.buildinfo"
+grep -q '^CONFIG_PACKAGE_luci-app-xg040g-performance=y$' "$out_dir/config.buildinfo"
 
 for package in \
 	kmod-usb-mtu3 \
@@ -116,7 +123,8 @@ for package in \
 	kmod-usb-gadget-mass-storage \
 	usbgadget \
 	libffmpeg-mini \
-	libffmpeg-full
+	libffmpeg-full \
+	xg040g-switchd
 do
 	if grep -q "^${package} - " "$manifest"; then
 		echo "Forbidden host-only package present: $package" >&2

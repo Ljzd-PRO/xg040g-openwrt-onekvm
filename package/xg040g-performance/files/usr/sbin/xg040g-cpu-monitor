@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+
+ACTIVE='/etc/xg040g-performance/cpu-overclock-active'
+
+while sleep 5; do
+	active="$(cat "$ACTIVE" 2>/dev/null || echo 0)"
+	case "$active" in 1300|1400) ;; *) continue ;; esac
+	status="$(/usr/sbin/xg040g-cpuctl status)"
+	temp="$(printf '%s' "$status" | jsonfilter -e '@.temperature_millic')"
+	actual="$(printf '%s' "$status" | jsonfilter -e '@.actual_mhz')"
+	revert="$(printf '%s' "$status" | jsonfilter -e '@.thermal_revert')000"
+	emergency="$(printf '%s' "$status" | jsonfilter -e '@.thermal_emergency')000"
+
+	if [ "$actual" != "$active" ] || [ "$temp" -le 0 ]; then
+		logger -t xg040g-performance 'Invalid frequency or temperature readback; restoring stock policy.'
+		/usr/sbin/xg040g-cpuctl restore-stock || true
+	elif [ "$temp" -ge "$emergency" ]; then
+		logger -t xg040g-performance "Emergency temperature ${temp}mC; restoring stock frequency and rebooting."
+		/usr/sbin/xg040g-cpuctl restore-stock || true
+		reboot
+		exit 0
+	elif [ "$temp" -ge "$revert" ]; then
+		logger -t xg040g-performance "Temperature ${temp}mC reached the rollback threshold; restoring stock policy."
+		/usr/sbin/xg040g-cpuctl restore-stock || true
+	fi
+done

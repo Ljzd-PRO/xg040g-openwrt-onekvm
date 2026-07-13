@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=xg040g-switch-management
 PKG_VERSION:=2.0.0
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_MAINTAINER:=XG-040G-MD OpenWrt One-KVM contributors
 PKG_LICENSE:=GPL-3.0-only

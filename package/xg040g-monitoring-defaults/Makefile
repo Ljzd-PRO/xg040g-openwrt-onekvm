@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=xg040g-monitoring-defaults
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_MAINTAINER:=XG-040G-MD OpenWrt One-KVM contributors
 PKG_LICENSE:=GPL-3.0-only

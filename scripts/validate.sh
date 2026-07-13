@@ -51,8 +51,11 @@ done < <(package_shell_scripts)
 node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/general.js
 node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/cloud-pxe.js
 node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/pxe.js
+node --check package/luci-app-xg040g-performance/htdocs/luci-static/resources/view/xg040g-performance/overview.js
 jq empty package/luci-app-one-kvm/root/usr/share/luci/menu.d/luci-app-one-kvm.json
 jq empty package/luci-app-one-kvm/root/usr/share/rpcd/acl.d/luci-app-one-kvm.json
+jq empty package/luci-app-xg040g-performance/root/usr/share/luci/menu.d/luci-app-xg040g-performance.json
+jq empty package/luci-app-xg040g-performance/root/usr/share/rpcd/acl.d/luci-app-xg040g-performance.json
 test -s docs/releases/v2026.07.13-rc1.md
 grep -Fq '# v2026.07.13-rc1' docs/releases/v2026.07.13-rc1.md
 grep -Fq 'workflow_dispatch:' .github/workflows/release.yml
@@ -175,6 +178,10 @@ grep -Eq '^CONFIG_IMAGEOPT=y$' configs/minimal.config
 grep -Eq '^CONFIG_PREINITOPT=y$' configs/minimal.config
 grep -Eq '^CONFIG_TARGET_PREINIT_TIMEOUT=12$' configs/minimal.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-switch-management=y$' configs/minimal.config
+grep -Eq '^CONFIG_PACKAGE_kmod-airoha-an7581-oc=y$' configs/minimal.config
+grep -Eq '^CONFIG_PACKAGE_xg040g-performance=y$' configs/minimal.config
+grep -Eq '^CONFIG_PACKAGE_luci-app-xg040g-performance=y$' configs/minimal.config
+grep -Eq '^CONFIG_PACKAGE_luci-i18n-xg040g-performance-zh-cn=y$' configs/minimal.config
 grep -Eq '^CONFIG_PACKAGE_one-kvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_luci-app-one-kvm=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_luci-app-frpc=y$' configs/onekvm.config
@@ -184,6 +191,10 @@ grep -Eq '^CONFIG_PACKAGE_xg040g-cloud-pxe=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-onekvm-runtime=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-switch-management=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_xg040g-monitoring-defaults=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_kmod-airoha-an7581-oc=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_xg040g-performance=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_luci-app-xg040g-performance=y$' configs/onekvm.config
+grep -Eq '^CONFIG_PACKAGE_luci-i18n-xg040g-performance-zh-cn=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_luci-app-statistics=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_luci-i18n-statistics-zh-cn=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_collectd-mod-thermal=y$' configs/onekvm.config
@@ -191,6 +202,19 @@ grep -Eq '^CONFIG_IMAGEOPT=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PREINITOPT=y$' configs/onekvm.config
 grep -Eq '^CONFIG_TARGET_PREINIT_TIMEOUT=12$' configs/onekvm.config
 grep -Eq '^PKG_LICENSE:=GPL-3.0-only$' package/xg040g-switch-management/Makefile
+grep -Eq '^PKG_LICENSE:=GPL-2.0-only$' package/kmod-airoha-an7581-oc/Makefile
+grep -Eq '^PKG_LICENSE:=GPL-3.0-only$' package/xg040g-performance/Makefile
+grep -Eq '^PKG_LICENSE:=Apache-2.0$' package/luci-app-xg040g-performance/Makefile
+grep -q 'nokia,xg-040g-md-tcboot' package/kmod-airoha-an7581-oc/src/airoha-an7581-oc.c
+grep -q 'Loading this module never changes' package/kmod-airoha-an7581-oc/Makefile
+grep -q "option overclock '0'" package/xg040g-performance/files/etc/config/xg040g-performance
+grep -q "option frequency '1200'" package/xg040g-performance/files/etc/config/xg040g-performance
+grep -q "option thermal_revert '85'" package/xg040g-performance/files/etc/config/xg040g-performance
+grep -q "option thermal_emergency '95'" package/xg040g-performance/files/etc/config/xg040g-performance
+grep -q "network.@globals\[0\].packet_steering=2" package/xg040g-performance/files/etc/uci-defaults/30-xg040g-performance-defaults
+grep -q "0 | 1 | 2" package/xg040g-performance/files/etc/uci-defaults/30-xg040g-performance-defaults
+grep -q "option packet_steering '\$packet_steering'" package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
+grep -q '/etc/init.d/packet_steering restart' package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
 grep -q "option port 'none'" package/xg040g-switch-management/files/etc/config/xg040g-management
 grep -q "SCHEMA_VERSION='2'" package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
 grep -q $'\treturn 0' package/xg040g-switch-management/files/usr/sbin/xg040g-network-mode
@@ -243,6 +267,18 @@ grep -q "set luci_statistics.collectd_thermal.enable='1'" \
 	package/xg040g-monitoring-defaults/files/90-xg040g-monitoring
 grep -q "set luci_statistics.collectd_rrdtool.DataDir='/tmp/rrd'" \
 	package/xg040g-monitoring-defaults/files/90-xg040g-monitoring
+for interface in br-lan br-pxe eth1 lan2 lan3 lan4; do
+	grep -q "add_list luci_statistics.collectd_interface.Interfaces='$interface'" \
+		package/xg040g-monitoring-defaults/files/90-xg040g-monitoring
+done
+grep -q 'xg040g.performance' package/luci-app-xg040g-performance/root/usr/share/rpcd/acl.d/luci-app-xg040g-performance.json
+grep -q 'OVERCLOCK' package/luci-app-xg040g-performance/htdocs/luci-static/resources/view/xg040g-performance/overview.js
+for forbidden in xg040g-switchd 'CONFIG_PACKAGE_tc-full=y' 'CONFIG_PACKAGE_irqbalance=y'; do
+	if grep -Fq "$forbidden" configs/minimal.config configs/onekvm.config; then
+		echo "Unsupported switch optimization is enabled: $forbidden" >&2
+		exit 1
+	fi
+done
 grep -Eq '^CONFIG_PACKAGE_libffmpeg-onekvm=y$' configs/onekvm.config
 grep -Eq '^PKG_RELEASE:=4$' package/xg040g-cloud-pxe/Makefile
 # shellcheck disable=SC2016

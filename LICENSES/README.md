@@ -12,6 +12,11 @@
 - `libyuv`: `BSD-3-Clause`; `libx265`: `GPL-2.0-only`; the focused FFmpeg
   runtime retains FFmpeg's GPL/LGPL notices and becomes GPL-enabled through
   x264/x265.
+- `kmod-airoha-an7581-oc`: `GPL-2.0-only`; it is adapted from the board-gated
+  PLL module in `Ljzd-PRO/xg040g-openwrt-switch` commit
+  `22bd32ab0cb417138763174f3840a67584ff63cf`.
+- `luci-app-xg040g-performance`: `Apache-2.0`; the policy and monitoring
+  backend remains `GPL-3.0-only`.
 - Git submodules retain their upstream licenses and copyright notices.
 
 The corresponding full license texts are stored in this directory. The root

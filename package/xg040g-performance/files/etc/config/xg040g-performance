@@ -1,0 +1,5 @@
+config cpu 'cpu'
+	option overclock '0'
+	option frequency '1200'
+	option thermal_revert '85'
+	option thermal_emergency '95'

@@ -1,0 +1,27 @@
+#!/bin/sh
+# shellcheck disable=SC1091
+
+. /lib/functions/system.sh
+
+[ "$(board_name 2>/dev/null)" = 'nokia,xg-040g-md-tcboot' ] || exit 0
+
+mode="$(uci -q get network.globals.packet_steering)"
+[ -n "$mode" ] || mode="$(uci -q get 'network.@globals[0].packet_steering')"
+
+case "$mode" in
+	0 | 1 | 2)
+		exit 0
+		;;
+esac
+
+if uci -q get network.globals >/dev/null; then
+	uci set network.globals.packet_steering='2'
+elif uci -q get 'network.@globals[0]' >/dev/null; then
+	uci set 'network.@globals[0].packet_steering=2'
+else
+	uci set network.globals='globals'
+	uci set network.globals.packet_steering='2'
+fi
+
+uci commit network
+exit 0

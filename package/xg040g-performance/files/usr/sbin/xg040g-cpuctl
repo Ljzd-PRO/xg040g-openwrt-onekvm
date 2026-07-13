@@ -1,0 +1,324 @@
+#!/bin/sh
+# shellcheck disable=SC3043 # BusyBox ash provides local variables.
+set -eu
+
+SYSFS='/sys/kernel/xg040g_cpu'
+POLICY='/sys/devices/system/cpu/cpufreq/policy0'
+STATE_DIR='/etc/xg040g-performance'
+ACTIVE="$STATE_DIR/cpu-overclock-active"
+LEGACY_ACTIVE='/etc/xg040g-switch/cpu-overclock-active'
+LOCK_DIR='/var/lock/xg040g-cpuctl.lock'
+
+# shellcheck disable=SC1091 # Supplied by libubox on OpenWrt.
+. /usr/share/libubox/jshn.sh
+
+read_value() {
+	cat "$1" 2>/dev/null || echo "$2"
+}
+
+valid_integer() {
+	local value
+	value="$1"
+	case "$value" in -*) value="${value#-}" ;; esac
+	case "$value" in ''|*[!0-9]*) return 1 ;; esac
+	return 0
+}
+
+valid_frequency() {
+	case "$1" in 1200|1300|1400) return 0 ;; *) return 1 ;; esac
+}
+
+temperature_millic() {
+	local zone type value
+	for zone in /sys/class/thermal/thermal_zone*; do
+		[ -r "$zone/temp" ] || continue
+		type="$(cat "$zone/type" 2>/dev/null || true)"
+		case "$type" in
+			*cpu*|*CPU*|*airoha*|*soc*|*SoC*)
+				value="$(cat "$zone/temp" 2>/dev/null || true)"
+				if valid_integer "$value" && [ "$value" -gt 0 ]; then
+					echo "$value"
+					return
+				fi
+				;;
+		esac
+	done
+	value="$(read_value /sys/class/thermal/thermal_zone0/temp 0)"
+	if valid_integer "$value" && [ "$value" -gt 0 ]; then
+		echo "$value"
+	else
+		echo 0
+	fi
+}
+
+thermal_limit() {
+	local key default minimum maximum value
+	key="$1"
+	default="$2"
+	minimum="$3"
+	maximum="$4"
+	value="$(uci -q get "xg040g-performance.cpu.$key" || echo "$default")"
+	if ! valid_integer "$value" || [ "$value" -lt "$minimum" ] || [ "$value" -gt "$maximum" ]; then
+		value="$default"
+	fi
+	echo "$value"
+}
+
+acquire_lock() {
+	mkdir -p /var/lock
+	if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+		echo 'Another CPU policy change is already running.' >&2
+		exit 75
+	fi
+	trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
+}
+
+write_active_marker() {
+	local target tmp
+	target="$1"
+	mkdir -p "$STATE_DIR"
+	chmod 0700 "$STATE_DIR"
+	tmp="$ACTIVE.$$"
+	printf '%s\n' "$target" > "$tmp"
+	chmod 0600 "$tmp"
+	mv "$tmp" "$ACTIVE"
+}
+
+set_stock_unlocked() {
+	local actual
+	[ -d "$SYSFS" ] || {
+		echo 'AN7581 PLL driver is unavailable.' >&2
+		return 1
+	}
+	actual="$(read_value "$SYSFS/actual_mhz" 0)"
+	if [ "$actual" != '1200' ]; then
+		if ! printf '1200\n' > "$SYSFS/requested_mhz"; then
+			echo 'Failed to restore the stock 1200 MHz frequency.' >&2
+			return 1
+		fi
+	fi
+	printf '0\n' > "$SYSFS/allow_overclock"
+	rm -f "$ACTIVE" "$LEGACY_ACTIVE"
+	actual="$(read_value "$SYSFS/actual_mhz" 0)"
+	[ "$actual" = '1200' ] || {
+		echo "Stock frequency readback failed: ${actual} MHz." >&2
+		return 1
+	}
+}
+
+validate_thermal_state() {
+	local temp revert emergency
+	temp="$(temperature_millic)"
+	[ "$temp" -gt 0 ] || {
+		echo 'A valid SoC temperature reading is required for overclocking.' >&2
+		return 1
+	}
+	revert="$(thermal_limit thermal_revert 85 70 95)"
+	emergency="$(thermal_limit thermal_emergency 95 80 110)"
+	[ "$emergency" -gt "$revert" ] || {
+		echo 'The emergency threshold must be higher than the rollback threshold.' >&2
+		return 1
+	}
+	[ "$temp" -lt "$((revert * 1000))" ] || {
+		echo "SoC temperature is already at or above ${revert} C." >&2
+		return 1
+	}
+}
+
+set_overclock_unlocked() {
+	local target actual
+	target="$1"
+	validate_thermal_state || return 1
+	printf '1\n' > "$SYSFS/allow_overclock"
+	if ! printf '%s\n' "$target" > "$SYSFS/requested_mhz"; then
+		set_stock_unlocked || true
+		echo "The kernel rejected ${target} MHz." >&2
+		return 1
+	fi
+	actual="$(read_value "$SYSFS/actual_mhz" 0)"
+	if [ "$actual" != "$target" ]; then
+		set_stock_unlocked || true
+		echo "Frequency readback mismatch: requested $target MHz, got $actual MHz." >&2
+		return 1
+	fi
+	write_active_marker "$target"
+}
+
+persist_stock() {
+	uci -q batch <<-'EOF'
+		set xg040g-performance.cpu='cpu'
+		set xg040g-performance.cpu.overclock='0'
+		set xg040g-performance.cpu.frequency='1200'
+		commit xg040g-performance
+	EOF
+}
+
+persist_overclock() {
+	local target
+	target="$1"
+	uci -q batch <<-EOF
+		set xg040g-performance.cpu='cpu'
+		set xg040g-performance.cpu.overclock='1'
+		set xg040g-performance.cpu.frequency='$target'
+		commit xg040g-performance
+	EOF
+}
+
+bridge_members() {
+	local bridge member result
+	bridge="$1"
+	result=''
+	for member in "/sys/class/net/$bridge/brif/"*; do
+		[ -e "$member" ] || continue
+		result="${result}${result:+ }${member##*/}"
+	done
+	echo "$result"
+}
+
+add_interface_status() {
+	local device queue queues mask masks carrier speed state
+	device="$1"
+	json_add_object "$device"
+	if [ ! -d "/sys/class/net/$device" ]; then
+		json_add_boolean present 0
+		json_close_object
+		return
+	fi
+	queues=0
+	masks=''
+	for queue in "/sys/class/net/$device/queues/"rx-*/rps_cpus; do
+		[ -r "$queue" ] || continue
+		queues=$((queues + 1))
+		mask="$(tr -d ' \t\r\n,' < "$queue")"
+		case " $masks " in *" $mask "*) ;; *) masks="${masks}${masks:+ }$mask" ;; esac
+	done
+	carrier="$(read_value "/sys/class/net/$device/carrier" 0)"
+	speed="$(read_value "/sys/class/net/$device/speed" 0)"
+	state="$(read_value "/sys/class/net/$device/operstate" unknown)"
+	valid_integer "$carrier" || carrier=0
+	valid_integer "$speed" || speed=0
+	json_add_boolean present 1
+	json_add_int rx_queues "$queues"
+	json_add_string rps_masks "$masks"
+	json_add_int carrier "$carrier"
+	json_add_int speed_mbps "$speed"
+	json_add_string operstate "$state"
+	json_close_object
+}
+
+status() {
+	local governor available current actual requested allowed error temp configured configured_oc
+	local revert emergency active steering value
+	governor="$(read_value "$POLICY/scaling_governor" unavailable)"
+	available="$(read_value "$POLICY/scaling_available_frequencies" '')"
+	current="$(read_value "$POLICY/scaling_cur_freq" 0)"
+	actual="$(read_value "$SYSFS/actual_mhz" 0)"
+	requested="$(read_value "$SYSFS/requested_mhz" 0)"
+	allowed="$(read_value "$SYSFS/allow_overclock" 0)"
+	error="$(read_value "$SYSFS/last_error" 0)"
+	temp="$(temperature_millic)"
+	configured="$(uci -q get xg040g-performance.cpu.frequency || echo 1200)"
+	configured_oc="$(uci -q get xg040g-performance.cpu.overclock || echo 0)"
+	revert="$(thermal_limit thermal_revert 85 70 95)"
+	emergency="$(thermal_limit thermal_emergency 95 80 110)"
+	active="$(read_value "$ACTIVE" 0)"
+	steering="$(uci -q get network.globals.packet_steering || \
+		uci -q get 'network.@globals[0].packet_steering' || echo 2)"
+	case "$steering" in 0|1|2) ;; *) steering=2 ;; esac
+	valid_integer "$current" || current=0
+	valid_integer "$actual" || actual=0
+	valid_integer "$requested" || requested=0
+	valid_integer "$allowed" || allowed=0
+	valid_integer "$error" || error=0
+	valid_integer "$temp" || temp=0
+	valid_integer "$configured" || configured=1200
+	valid_integer "$configured_oc" || configured_oc=0
+	valid_integer "$active" || active=0
+	case "$allowed" in 0|1) ;; *) allowed=0 ;; esac
+	case "$configured_oc" in 0|1) ;; *) configured_oc=0 ;; esac
+
+	json_init
+	json_add_boolean cpufreq_available "$([ -d "$POLICY" ] && echo 1 || echo 0)"
+	json_add_string governor "$governor"
+	json_add_string available_frequencies "$available"
+	json_add_int current_khz "$current"
+	json_add_int actual_mhz "$actual"
+	json_add_int requested_mhz "$requested"
+	json_add_boolean overclock_allowed "$allowed"
+	json_add_int last_error "$error"
+	json_add_int temperature_millic "$temp"
+	json_add_int configured_mhz "$configured"
+	json_add_boolean configured_overclock "$configured_oc"
+	json_add_int active_mhz "$active"
+	json_add_int thermal_revert "$revert"
+	json_add_int thermal_emergency "$emergency"
+	json_add_int packet_steering "$steering"
+	json_add_object interfaces
+	add_interface_status eth0
+	add_interface_status eth1
+	json_close_object
+	json_add_object bridges
+	json_add_string br_lan "$(bridge_members br-lan)"
+	json_add_string br_pxe "$(bridge_members br-pxe)"
+	json_close_object
+	json_add_array net_rx
+	# shellcheck disable=SC2046 # Each softirq counter becomes one JSON item.
+	set -- $(awk '$1 == "NET_RX:" { for (i = 2; i <= NF; i++) print $i }' /proc/softirqs 2>/dev/null)
+	for value in "$@"; do
+		valid_integer "$value" && json_add_int '' "$value"
+	done
+	json_close_array
+	json_dump
+}
+
+apply_config() {
+	local target enabled
+	acquire_lock
+	if [ -e "$ACTIVE" ] || [ -e "$LEGACY_ACTIVE" ]; then
+		logger -t xg040g-performance 'Unclean overclock marker found; restoring stock frequency.'
+		persist_stock
+		set_stock_unlocked
+		return
+	fi
+	target="$(uci -q get xg040g-performance.cpu.frequency || echo 1200)"
+	enabled="$(uci -q get xg040g-performance.cpu.overclock || echo 0)"
+	if [ "$enabled" = '1' ] && valid_frequency "$target" && [ "$target" -gt 1200 ]; then
+		if ! set_overclock_unlocked "$target"; then
+			logger -t xg040g-performance "Unable to apply $target MHz; restoring stock policy."
+			persist_stock
+			set_stock_unlocked || true
+			return 1
+		fi
+	else
+		set_stock_unlocked
+	fi
+}
+
+set_runtime() {
+	local target
+	target="$1"
+	valid_frequency "$target" || {
+		echo 'Unsupported frequency. Use 1200, 1300 or 1400.' >&2
+		exit 64
+	}
+	acquire_lock
+	if [ "$target" = '1200' ]; then
+		set_stock_unlocked
+	else
+		set_overclock_unlocked "$target"
+	fi
+}
+
+restore_stock() {
+	acquire_lock
+	persist_stock
+	set_stock_unlocked
+}
+
+case "${1:-status}" in
+	status) status ;;
+	set) set_runtime "${2:?frequency required}" ;;
+	apply-config) apply_config ;;
+	restore-stock) restore_stock ;;
+	*) echo "Usage: $0 {status|set 1200|1300|1400|apply-config|restore-stock}" >&2; exit 64 ;;
+esac

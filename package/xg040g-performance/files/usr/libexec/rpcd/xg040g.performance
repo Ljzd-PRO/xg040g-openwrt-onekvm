@@ -1,0 +1,79 @@
+#!/bin/sh
+set -eu
+
+error_json() {
+	code="$1"
+	message="$2"
+	printf '{"success":false,"error":"%s","message":"%s"}\n' "$code" "$message"
+}
+
+status_json() {
+	/usr/sbin/xg040g-cpuctl status
+}
+
+case "$1" in
+	list)
+		echo '{"status":{},"set_steering":{"mode":"int"},"apply_cpu":{"frequency":"int","overclock":"bool","confirm":"string"},"restore_stock":{}}'
+		;;
+	call)
+		case "$2" in
+			status)
+				status_json
+				;;
+			set_steering)
+				mode="$(printf '%s' "$3" | jsonfilter -e '@.mode' 2>/dev/null || true)"
+				case "$mode" in
+					0|1|2) ;;
+					*) error_json invalid_mode 'Packet steering must be 0, 1 or 2.'; exit 0 ;;
+				esac
+				if uci -q get 'network.@globals[0]' >/dev/null 2>&1; then
+					uci set "network.@globals[0].packet_steering=$mode"
+				else
+					uci set network.globals='globals'
+					uci set network.globals.packet_steering="$mode"
+				fi
+				uci commit network
+				/etc/init.d/packet_steering restart >/dev/null 2>&1 || true
+				status_json
+				;;
+			apply_cpu)
+				frequency="$(printf '%s' "$3" | jsonfilter -e '@.frequency' 2>/dev/null || true)"
+				overclock="$(printf '%s' "$3" | jsonfilter -e '@.overclock' 2>/dev/null || true)"
+				confirm="$(printf '%s' "$3" | jsonfilter -e '@.confirm' 2>/dev/null || true)"
+				case "$frequency" in 1200|1300|1400) ;; *) error_json invalid_frequency 'Unsupported CPU frequency.'; exit 0 ;; esac
+				if [ "$frequency" = '1200' ]; then
+					/usr/sbin/xg040g-cpuctl restore-stock >/dev/null
+					status_json
+					exit 0
+				fi
+				case "$overclock" in true|1) ;; *) error_json overclock_disabled 'Overclocking was not explicitly enabled.'; exit 0 ;; esac
+				[ "$confirm" = 'OVERCLOCK' ] || { error_json confirmation_required 'Type OVERCLOCK to continue.'; exit 0; }
+				if ! /usr/sbin/xg040g-cpuctl set "$frequency" >/dev/null; then
+					/usr/sbin/xg040g-cpuctl restore-stock >/dev/null 2>&1 || true
+					error_json apply_failed 'The frequency change failed and stock settings were restored.'
+					exit 0
+				fi
+				if ! uci -q batch <<-EOF
+					set xg040g-performance.cpu='cpu'
+					set xg040g-performance.cpu.overclock='1'
+					set xg040g-performance.cpu.frequency='$frequency'
+					commit xg040g-performance
+				EOF
+				then
+					/usr/sbin/xg040g-cpuctl restore-stock >/dev/null 2>&1 || true
+					error_json persist_failed 'The setting could not be saved and stock settings were restored.'
+					exit 0
+				fi
+				status_json
+				;;
+			restore_stock)
+				if /usr/sbin/xg040g-cpuctl restore-stock >/dev/null; then
+					status_json
+				else
+					error_json restore_failed 'Unable to restore the stock CPU frequency.'
+				fi
+				;;
+			*) error_json unknown_method 'Unknown method.' ;;
+		esac
+		;;
+esac
