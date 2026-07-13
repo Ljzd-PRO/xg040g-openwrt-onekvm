@@ -8,6 +8,8 @@
 - LuCI、uhttpd、Dropbear、保留配置 sysupgrade 正常。
 - LuCI Statistics、collectd CPU/内存/负载/接口统计和 AN7581 `cpu-thermal`
   温度 RRD 已完成保留配置刷机与实机图表验证。
+- 全核 RPS、默认 1200 MHz 的 PLL 控制后端和“交换性能”LuCI 已进入当前源码；
+  新固件构建和实机验证完成前不计入已发布 `v2026.07.13-rc1` 的能力。
 - 两个 xHCI 控制器工作，系统显示四个 USB2/USB3 root hub。
 - host-only 状态下 `/sys/class/udc` 为空。
 - One-KVM 0.2.3 完整运行时、LuCI 版本状态、默认停用和 ROM 恢复均已验证。
@@ -36,6 +38,7 @@
 - USB3 外置盘 `KVMSTORE` 的 5 Gbit/s 链路、自动挂载与持续读写。
 - 实体 ATX 继电器后端。
 - Cloud PXE 从真实远程存储启动 FirPE/SystemRescue 的双网线复测。
+- 2.5G 主机同时向两个或三个千兆终端转发的聚合吞吐和 24 小时稳定性测试。
 
 详细实测数据见 [2026-07-12 full-profile hardware validation](hardware-validation-20260712.md)
 、[2026-07-12 WebDAV/Hyper-V PXE validation](hardware-validation-20260712-webdav-hyperv-pxe.md)
