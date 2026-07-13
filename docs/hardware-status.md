@@ -8,11 +8,13 @@
 - LuCI、uhttpd、Dropbear、保留配置 sysupgrade 正常。
 - LuCI Statistics、collectd CPU/内存/负载/接口统计和 AN7581 `cpu-thermal`
   温度 RRD 已完成保留配置刷机与实机图表验证。
-- 全核 RPS 已在实机上确认 `eth0`/`eth1` 共 64 个 RX 队列的掩码全为 `f`，
-  应用期间 SSH 和四口桥接正常。测试未提交 UCI，不涉及 PLL 模块。
+- 最终性能固件已在实机确认 `eth0`/`eth1` 共 64 个 RX 队列的全核 RPS 掩码
+  全为 `f`；持久配置、LuCI 状态 RPC 和参数化控制 RPC 均正常，SSH 与四口
+  `br-lan` 保持可用。
 - 首个性能实验固件在保留配置刷入后失去管理网络，已通过 tcboot、稳定
   固件和刷机前备份完整恢复。由于 factory 重建 overlay 后无法保留失败启动日志，
-  不对根因作无证据结论；修正后默认 1200 MHz 路径完全不加载 PLL 模块。
+  不对根因作无证据结论；最终 `xg040g-performance 1.0.0-r5` 已完成无超频
+  保留配置刷机，默认 1200 MHz、恢复原厂和 RPS 控制路径均不加载 PLL 模块。
 - 两个 xHCI 控制器工作，系统显示四个 USB2/USB3 root hub。
 - host-only 状态下 `/sys/class/udc` 为空。
 - One-KVM 0.2.3 完整运行时、LuCI 版本状态、默认停用和 ROM 恢复均已验证。
