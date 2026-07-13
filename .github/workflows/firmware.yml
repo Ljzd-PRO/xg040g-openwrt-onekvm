@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       profile:
@@ -48,7 +46,7 @@ jobs:
           REQUESTED_PROFILE: ${{ inputs.profile || 'onekvm' }}
           REQUESTED_RUNNER: ${{ inputs.runner || 'ubuntu-24.04' }}
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* || "$REQUESTED_PROFILE" == "all" ]]; then
+          if [[ "$REQUESTED_PROFILE" == "all" ]]; then
             echo 'profiles=["minimal","onekvm"]' >> "$GITHUB_OUTPUT"
           else
             printf 'profiles=["%s"]\n' "$REQUESTED_PROFILE" >> "$GITHUB_OUTPUT"
@@ -65,7 +63,7 @@ jobs:
         profile: ${{ fromJSON(needs.select.outputs.profiles) }}
     steps:
       - name: Checkout pinned sources
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 1
           submodules: recursive
@@ -83,7 +81,7 @@ jobs:
           fi
 
       - name: Restore OpenWrt downloads
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             .cache/dl
@@ -110,24 +108,24 @@ jobs:
         run: ./scripts/create-source-bundle.sh "$GITHUB_WORKSPACE/release/source-with-submodules.tar.zst"
 
       - name: Attest firmware
-        uses: actions/attest@f6bf1532d7d6793fce74eac584813a8eee607999 # v4
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4
         with:
           subject-path: release/${{ matrix.profile }}/*.{bin,itb}
 
       - name: Attest standalone One-KVM APKs
         if: matrix.profile == 'onekvm'
-        uses: actions/attest@f6bf1532d7d6793fce74eac584813a8eee607999 # v4
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4
         with:
           subject-path: release/${{ matrix.profile }}/*.apk
 
       - name: Attest source bundle
         if: matrix.profile == 'onekvm'
-        uses: actions/attest@f6bf1532d7d6793fce74eac584813a8eee607999 # v4
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4
         with:
           subject-path: release/source-with-submodules.tar.zst
 
       - name: Upload firmware artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: firmware-${{ matrix.profile }}
           path: release/${{ matrix.profile }}/
@@ -136,50 +134,9 @@ jobs:
 
       - name: Upload source artifact
         if: matrix.profile == 'onekvm'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: source-with-submodules
           path: release/source-with-submodules.tar.zst
           if-no-files-found: error
           retention-days: 7
-
-  release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs:
-      - select
-      - build
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - name: Download firmware artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          pattern: firmware-*
-          path: release-dist
-          merge-multiple: true
-
-      - name: Download source bundle
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: source-with-submodules
-          path: release-dist
-
-      - name: Publish prerelease
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cd release-dist
-          find . -type f ! -name SHA256SUMS -exec sha256sum {} \; | sort -k2 > SHA256SUMS
-          printf '%s\n' \
-            'Automated XG-040G-MD OpenWrt build.' \
-            '' \
-            'The One-KVM profile includes standalone one-kvm, LuCI, and zh-cn APK upgrade assets.' \
-            '' \
-            'This remains a prerelease until MS2109 and CH9329 hardware validation is complete.' \
-            > release-notes.md
-          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --prerelease \
-            --title "$GITHUB_REF_NAME" --notes-file release-notes.md
-          while IFS= read -r asset; do
-            gh release upload "$GITHUB_REF_NAME" "$asset" --repo "$GITHUB_REPOSITORY"
-          done < <(find . -type f ! -name release-notes.md | sort)

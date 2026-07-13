@@ -53,6 +53,12 @@ node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/
 node --check package/luci-app-one-kvm/htdocs/luci-static/resources/view/one-kvm/pxe.js
 jq empty package/luci-app-one-kvm/root/usr/share/luci/menu.d/luci-app-one-kvm.json
 jq empty package/luci-app-one-kvm/root/usr/share/rpcd/acl.d/luci-app-one-kvm.json
+test -s docs/releases/v2026.07.13-rc1.md
+grep -Fq '# v2026.07.13-rc1' docs/releases/v2026.07.13-rc1.md
+grep -Fq 'workflow_dispatch:' .github/workflows/release.yml
+# shellcheck disable=SC2016
+grep -Fq 'docs/releases/$RELEASE_TAG.md' .github/workflows/release.yml
+grep -Fq 'build_run_id:' .github/workflows/release.yml
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -77,8 +83,55 @@ for patch_file in patches/openwrt/onekvm/*.patch; do
 	git -C "$tmp/openwrt" apply "$repo_root/$patch_file"
 done
 
-packages_commit="$(awk '$1 == "src-git" && $2 == "packages" { split($3, parts, "\\^"); print parts[2] }' locks/feeds.conf)"
-luci_commit="$(awk '$1 == "src-git" && $2 == "luci" { split($3, parts, "\\^"); print parts[2] }' locks/feeds.conf)"
+prepare_feed_cache() {
+	local name="$1"
+	local source url commit cache_repo attempt
+
+	source="$(awk -v feed="$name" '$1 == "src-git" && $2 == feed { print $3 }' locks/feeds.conf)"
+	[[ -n "$source" && "$source" == *^* ]] || {
+		echo "Feed $name is missing or not pinned in locks/feeds.conf" >&2
+		return 1
+	}
+	url="${source%^*}"
+	commit="${source##*^}"
+	cache_repo="$repo_root/.cache/feeds/$name.git"
+
+	if [[ ! -d "$cache_repo" ]]; then
+		mkdir -p "$(dirname "$cache_repo")"
+		git -c init.defaultBranch=main init --bare -q "$cache_repo"
+	fi
+	git --git-dir="$cache_repo" rev-parse --is-bare-repository >/dev/null 2>&1 || {
+		echo "Feed cache is not a bare Git repository: $cache_repo" >&2
+		return 1
+	}
+
+	if ! git --git-dir="$cache_repo" cat-file -e "${commit}^{commit}" 2>/dev/null; then
+		if git --git-dir="$cache_repo" remote get-url origin >/dev/null 2>&1; then
+			git --git-dir="$cache_repo" remote set-url origin "$url"
+		else
+			git --git-dir="$cache_repo" remote add origin "$url"
+		fi
+
+		for attempt in 1 2 3; do
+			if git --git-dir="$cache_repo" -c http.lowSpeedLimit=1000 \
+				-c http.lowSpeedTime=60 fetch --no-tags --depth=1 origin "$commit" \
+				&& git --git-dir="$cache_repo" cat-file -e "${commit}^{commit}"; then
+				break
+			fi
+			echo "Feed $name fetch attempt $attempt failed; retrying." >&2
+			sleep "$((attempt * 5))"
+		done
+	fi
+
+	git --git-dir="$cache_repo" cat-file -e "${commit}^{commit}" || {
+		echo "Unable to prepare feed $name at $commit" >&2
+		return 1
+	}
+	printf '%s\n' "$commit"
+}
+
+packages_commit="$(prepare_feed_cache packages)"
+luci_commit="$(prepare_feed_cache luci)"
 git --git-dir=.cache/feeds/packages.git archive "$packages_commit" libs/libx264 net/frp utils/ttyd | tar -x -C "$tmp/packages"
 git -C "$tmp/packages" init -q
 for patch_file in patches/packages/onekvm/*.patch; do
@@ -183,6 +236,10 @@ grep -q "set luci_statistics.collectd_thermal.enable='1'" \
 grep -q "set luci_statistics.collectd_rrdtool.DataDir='/tmp/rrd'" \
 	package/xg040g-monitoring-defaults/files/90-xg040g-monitoring
 grep -Eq '^CONFIG_PACKAGE_libffmpeg-onekvm=y$' configs/onekvm.config
+grep -Eq '^PKG_RELEASE:=4$' package/xg040g-cloud-pxe/Makefile
+# shellcheck disable=SC2016
+grep -Fq ': > $(1)/etc/xg040g/rclone.conf' package/xg040g-cloud-pxe/Makefile
+test ! -e package/xg040g-cloud-pxe/files/etc/xg040g/rclone.conf
 grep -Eq '^CONFIG_PACKAGE_kmod-usb-audio=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_ttyd=y$' configs/onekvm.config
 grep -Eq '^CONFIG_PACKAGE_gostc=y$' configs/onekvm.config

@@ -1,0 +1,168 @@
+name: Release firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v2026.07.13-rc1
+        required: true
+        type: string
+      build_run_id:
+        description: Successful Build firmware workflow run ID for this commit
+        required: true
+        type: string
+      prerelease:
+        description: Publish as a prerelease
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout release metadata
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate release request
+        env:
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]{4}\.[0-9]{2}\.[0-9]{2}(-rc[1-9][0-9]*)?$ ]] || {
+            echo "Unsupported release tag: $RELEASE_TAG" >&2
+            exit 1
+          }
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]] || {
+            echo "Build run ID must be numeric." >&2
+            exit 1
+          }
+
+          notes_file="docs/releases/$RELEASE_TAG.md"
+          test -s "$notes_file"
+          grep -Fq "$RELEASE_TAG" "$notes_file"
+
+          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID")"
+          [[ "$(jq -r .name <<<"$run_json")" == "Build firmware" ]]
+          [[ "$(jq -r .status <<<"$run_json")" == "completed" ]]
+          [[ "$(jq -r .conclusion <<<"$run_json")" == "success" ]]
+          [[ "$(jq -r .head_sha <<<"$run_json")" == "$GITHUB_SHA" ]] || {
+            echo "Build run commit does not match release commit." >&2
+            exit 1
+          }
+
+          mapfile -t artifact_names < <(
+            gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID/artifacts" \
+              --jq '.artifacts[] | select(.expired == false) | .name'
+          )
+          for required in firmware-minimal firmware-onekvm source-with-submodules; do
+            printf '%s\n' "${artifact_names[@]}" | grep -Fxq "$required" || {
+              echo "Required artifact is missing: $required" >&2
+              exit 1
+            }
+          done
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag already exists: $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+      - name: Download firmware artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: firmware-*
+          path: release-input
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.build_run_id }}
+
+      - name: Download source bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: source-with-submodules
+          path: release-input/source-with-submodules
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.build_run_id }}
+
+      - name: Verify and assemble release assets
+        run: |
+          set -euo pipefail
+          for profile in minimal onekvm; do
+            profile_dir="release-input/firmware-$profile"
+            test -s "$profile_dir/SHA256SUMS"
+            (cd "$profile_dir" && sha256sum -c SHA256SUMS)
+          done
+          test -s release-input/source-with-submodules/source-with-submodules.tar.zst
+
+          mkdir release-dist
+          copy_unique() {
+            local source="$1"
+            local destination="release-dist/$(basename "$source")"
+            [[ ! -e "$destination" ]] || {
+              echo "Duplicate release asset: $(basename "$source")" >&2
+              return 1
+            }
+            cp "$source" "$destination"
+          }
+
+          for profile in minimal onekvm; do
+            while IFS= read -r -d '' asset; do
+              copy_unique "$asset"
+            done < <(find "release-input/firmware-$profile" -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z)
+          done
+          copy_unique release-input/source-with-submodules/source-with-submodules.tar.zst
+
+          for required in \
+            xg040g-minimal-factory.bin xg040g-minimal-sysupgrade.bin \
+            xg040g-minimal-initramfs.itb xg040g-minimal.manifest \
+            xg040g-minimal-build-metadata.json \
+            xg040g-onekvm-factory.bin xg040g-onekvm-sysupgrade.bin \
+            xg040g-onekvm-initramfs.itb xg040g-onekvm.manifest \
+            xg040g-onekvm-build-metadata.json xg040g-onekvm-apk-metadata.json \
+            source-with-submodules.tar.zst; do
+            test -s "release-dist/$required"
+          done
+          for pattern in 'one-kvm-*.apk' 'luci-app-one-kvm-*.apk' 'luci-i18n-one-kvm-zh-cn-*.apk'; do
+            mapfile -t matches < <(compgen -G "release-dist/$pattern" || true)
+            [[ "${#matches[@]}" -eq 1 ]] || {
+              echo "Expected exactly one release asset matching $pattern" >&2
+              exit 1
+            }
+          done
+
+          (cd release-dist && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          release_flags=()
+          if [[ "$PRERELEASE" == "true" ]]; then
+            release_flags+=(--prerelease)
+          fi
+          gh release create "$RELEASE_TAG" release-dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "XG-040G-MD OpenWrt One-KVM $RELEASE_TAG" \
+            --notes-file "docs/releases/$RELEASE_TAG.md" \
+            "${release_flags[@]}"

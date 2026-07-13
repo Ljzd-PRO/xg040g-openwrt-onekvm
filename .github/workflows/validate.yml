@@ -14,12 +14,17 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout pinned sources
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 1
           submodules: recursive
           persist-credentials: false
 
+      - name: Restore validation feed cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/feeds
+          key: ${{ runner.os }}-${{ runner.arch }}-validate-feeds-${{ hashFiles('locks/feeds.conf') }}
+
       - name: Validate repository
         run: ./scripts/validate.sh
-
