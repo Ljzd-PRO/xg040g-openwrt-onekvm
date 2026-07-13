@@ -3,6 +3,7 @@ set -eu
 
 root="$(cd -- "$(dirname "$0")/.." && pwd)"
 cpuctl="$root/package/xg040g-performance/files/usr/sbin/xg040g-cpuctl"
+rpc="$root/package/xg040g-performance/files/usr/libexec/rpcd/xg040g.performance"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
@@ -28,8 +29,28 @@ case "$*" in
 	*"get xg040g-performance.cpu.overclock"*) echo 0 ;;
 	*"get xg040g-performance.cpu.thermal_revert"*) echo 85 ;;
 	*"get xg040g-performance.cpu.thermal_emergency"*) echo 95 ;;
+	*"get network.@globals[0]"*) exit 1 ;;
+	*"set network.globals=globals"*|*"set network.globals.packet_steering=2"*|*"commit network"*) exit 0 ;;
 	*"batch"*) cat >/dev/null ;;
 	*) exit 1 ;;
+esac
+EOF
+
+cat > "$tmp/bin/rpc-cpuctl" <<'EOF'
+#!/bin/sh
+echo '{"status":"ok"}'
+EOF
+
+cat > "$tmp/bin/packet-steering" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+
+cat > "$tmp/bin/jsonfilter" <<'EOF'
+#!/bin/sh
+input="$(cat)"
+case "$*" in
+	*'@.mode'*) printf '%s\n' "$input" | sed -n 's/.*"mode":[[:space:]]*\([0-9][0-9]*\).*/\1/p' ;;
 esac
 EOF
 
@@ -56,7 +77,8 @@ cat > "$tmp/bin/logger" <<'EOF'
 exit 0
 EOF
 
-chmod +x "$tmp/bin/uci" "$tmp/bin/modprobe" "$tmp/bin/logger"
+chmod +x "$tmp/bin/uci" "$tmp/bin/modprobe" "$tmp/bin/logger" \
+	"$tmp/bin/rpc-cpuctl" "$tmp/bin/packet-steering" "$tmp/bin/jsonfilter"
 
 run_cpuctl() {
 	PATH="$tmp/bin:$PATH" \
@@ -76,6 +98,11 @@ run_cpuctl apply-config
 run_cpuctl set 1200
 run_cpuctl restore-stock
 run_cpuctl status | grep -q '"status":"ok"'
+
+printf '{"mode":2}' | PATH="$tmp/bin:$PATH" \
+	XG040G_CPUCTL="$tmp/bin/rpc-cpuctl" \
+	XG040G_PACKET_STEERING_INIT="$tmp/bin/packet-steering" \
+	sh "$rpc" call set_steering | grep -q '"status":"ok"'
 
 printf '%s\n' 1400 > "$tmp/state/cpu-overclock-active"
 run_cpuctl apply-config
