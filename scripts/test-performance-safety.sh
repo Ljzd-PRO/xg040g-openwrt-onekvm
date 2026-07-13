@@ -7,7 +7,17 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
 mkdir -p "$tmp/bin" "$tmp/state" "$tmp/thermal/thermal_zone0"
-: > "$tmp/jshn.sh"
+cat > "$tmp/jshn.sh" <<'EOF'
+json_init() { : "$JSON_UNSET"; }
+json_add_boolean() { :; }
+json_add_string() { :; }
+json_add_int() { :; }
+json_add_object() { :; }
+json_close_object() { :; }
+json_add_array() { :; }
+json_close_array() { :; }
+json_dump() { echo '{"status":"ok"}'; }
+EOF
 printf '%s\n' airoha_thermal > "$tmp/thermal/thermal_zone0/type"
 printf '%s\n' 45000 > "$tmp/thermal/thermal_zone0/temp"
 
@@ -65,6 +75,7 @@ run_cpuctl() {
 run_cpuctl apply-config
 run_cpuctl set 1200
 run_cpuctl restore-stock
+run_cpuctl status | grep -q '"status":"ok"'
 
 printf '%s\n' 1400 > "$tmp/state/cpu-overclock-active"
 run_cpuctl apply-config

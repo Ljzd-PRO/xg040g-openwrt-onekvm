@@ -279,6 +279,9 @@ status() {
 	stock_default=0
 	[ "$pll_driver" = '0' ] && [ "$configured_oc" = '0' ] && stock_default=1
 
+	# libubox jshn intentionally reads unset state variables while building JSON.
+	# Scope nounset off to this block, then restore the script's strict mode.
+	set +u
 	json_init
 	json_add_boolean cpufreq_available "$([ -d "$POLICY" ] && echo 1 || echo 0)"
 	json_add_string governor "$governor"
@@ -313,6 +316,7 @@ status() {
 	done
 	json_close_array
 	json_dump
+	set -u
 }
 
 apply_config() {
