@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag, for example v2026.07.13-rc1
+        description: Release tag, for example v2026.07.14 or v2026.07.14-rc1
         required: true
         type: string
       build_run_id:

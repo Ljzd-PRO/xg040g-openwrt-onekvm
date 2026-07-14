@@ -108,7 +108,7 @@ git push -u origin main
 git push --recurse-submodules=check origin main
 ```
 
-To create a prerelease build and publish it:
+To build and publish a release:
 
 ```bash
 # GitHub Actions -> Build firmware -> Run workflow
@@ -117,10 +117,11 @@ To create a prerelease build and publish it:
 
 # After that run succeeds:
 # GitHub Actions -> Release firmware -> Run workflow
-# tag: vYYYY.MM.DD-rc1
+# tag: vYYYY.MM.DD for a stable release, or vYYYY.MM.DD-rc1 for a prerelease
 # build_run_id: the successful Build firmware run ID
-# prerelease: true
+# prerelease: false for a stable release, true for a prerelease
 ```
 
-Keep releases as prerelease until USB3 `KVMSTORE` has been validated on
-hardware.
+Publish a stable release only after the default management, recovery and
+One-KVM paths have passed device smoke tests. Disclose every unfinished
+optional hardware or experimental performance test in the release notes.

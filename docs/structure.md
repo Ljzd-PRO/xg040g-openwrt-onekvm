@@ -203,18 +203,20 @@ git submodule status --recursive
 ./scripts/validate.sh
 ```
 
-如果要触发 prerelease，先在 GitHub Actions 手动运行 `Build firmware`，选择
+如果要发布版本，先在 GitHub Actions 手动运行 `Build firmware`，选择
 `profile=all`。两个 profile 和 source bundle 均成功后，再运行
-`Release firmware`，填写版本、前一步的 run ID，并保持 `prerelease=true`。
+`Release firmware`，填写版本、前一步的 run ID。正式版使用
+`vYYYY.MM.DD` 和 `prerelease=false`；预发布版使用 `vYYYY.MM.DD-rcN` 和
+`prerelease=true`。
 发布说明必须预先提交到：
 
 ```text
-docs/releases/vYYYY.MM.DD-rc1.md
+docs/releases/vYYYY.MM.DD.md
 ```
 
 Release workflow 会确认构建与发布 commit 相同、三个 artifact 齐全且校验值通过，
-然后创建 tag。不要再手动推送发布 tag。硬件闭环未完成前，Release 保持
-prerelease。
+然后创建 tag。不要再手动推送发布 tag。未完成的可选硬件和实验功能测试必须在
+发行说明中明确列出。
 
 ## 故障排查提示
 
