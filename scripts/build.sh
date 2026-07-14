@@ -265,6 +265,9 @@ docker run "${docker_args[@]}" "$builder_image" bash -lc '
 			mkdir -p "$cache_repo"
 			git init --bare "$cache_repo" >/dev/null
 		fi
+		# GitHub Actions restores cached repositories with the runner UID while
+		# this build runs as root in Docker. Trust only the exact feed cache path.
+		git config --global --add safe.directory "$cache_repo"
 
 		if git --git-dir="$cache_repo" cat-file -e "${commit}^{commit}" 2>/dev/null; then
 			pin_feed_commit

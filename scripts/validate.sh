@@ -179,6 +179,7 @@ grep -q 'const seen_ports = new Set()' \
 	"$tmp/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/29_ports.js"
 
 [[ "$(grep -c '^src-git ' locks/feeds.conf)" == "5" ]]
+grep -Fq "git config --global --add safe.directory \"\$cache_repo\"" scripts/build.sh
 grep -Eq '^CONFIG_TARGET_airoha_an7581_DEVICE_nokia_xg-040g-md-tcboot=y$' configs/minimal.config
 grep -Eq '^CONFIG_IMAGEOPT=y$' configs/minimal.config
 grep -Eq '^CONFIG_PREINITOPT=y$' configs/minimal.config
